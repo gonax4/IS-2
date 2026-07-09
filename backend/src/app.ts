@@ -15,6 +15,8 @@ import slaConfigurationRoutes from "./routes/sla-configuration.routes";
 import municipalityRoutes from "./routes/municipality.routes";
 import technicalAttentionRoutes from "./routes/technical-attention.routes";
 import fieldWorkRoutes from "./routes/fieldwork.routes";
+import technicalClosureRoutes from "./routes/technical-closure.routes";
+import operatorMonitoringRoutes from "./routes/operator-monitoring.routes";
 
 const app = express();
 
@@ -36,6 +38,9 @@ app.use("/api/sla-configurations", slaConfigurationRoutes);
 app.use("/api/municipalities", municipalityRoutes);
 app.use("/api/technical-attentions", technicalAttentionRoutes);
 app.use("/api/fieldwork", fieldWorkRoutes);
+app.use("/api/technical-closures", technicalClosureRoutes);
+app.use("/api/operator-monitoring", operatorMonitoringRoutes);
+
 app.get("/", (req, res) => {res.send("API ReportaYA funcionando");});
 
 export default app;

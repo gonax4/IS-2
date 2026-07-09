@@ -411,6 +411,19 @@ async findByProblemType(problemType: string) {
         },
 
         technicalAttentions: true,
+
+        technicalClosure: {
+          include: {
+            technician: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
     });
   }

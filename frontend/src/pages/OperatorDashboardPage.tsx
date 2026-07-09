@@ -342,6 +342,25 @@ export default function
                         >
                             Asignados
                         </button>
+
+                                <button
+                                    onClick={() =>
+                                        navigate("/operator/monitoring")
+                                    }
+                                    className="
+                                        px-5
+                                        py-3
+                                        rounded-xl
+                                        bg-[#03152E]
+                                        text-white
+                                        font-bold
+                                        hover:bg-black
+                                        transition
+                                    "
+                                >
+                                    Monitoreo técnico
+                                </button>
+
                             <button
                                 onClick={() =>
                                     navigate("/operator/technician-applications")

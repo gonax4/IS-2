@@ -58,6 +58,12 @@ import TechnicianReportDetailPage
 import TechnicianAttendPage
     from "./pages/TechnicianAttendPage";
 
+import TechnicianClosurePage
+  from "./pages/TechnicianClosurePage";
+
+import OperatorMonitoringPage
+  from "./pages/OperatorMonitoringPage";
+
 function getDashboardByRole(
   role: string | null
 ) {
@@ -202,6 +208,15 @@ export default function App() {
       />
 
       <Route
+        path="/operator/monitoring"
+        element={
+          <ProtectedRoute allowedRoles={["OPERATOR"]}>
+            <OperatorMonitoringPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/operator/report/:id"
         element={
           <ProtectedRoute allowedRoles={["OPERATOR"]}>
@@ -255,6 +270,15 @@ export default function App() {
           }
         />
 
+        <Route
+          path="/technician/reports/:id/closure"
+          element={
+            <ProtectedRoute allowedRoles={["TECHNICIAN"]}>
+              <TechnicianClosurePage />
+            </ProtectedRoute>
+          }
+        />
+      
       <Route
         path="/reports/map"
         element={<ReportsMapPage />}

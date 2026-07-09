@@ -16,6 +16,27 @@ const API_URL =
     import.meta.env.VITE_API_URL ||
     "http://localhost:3000";
 
+const technicalClosureResultLabels:
+    Record<string, string> = {
+        RESOLVED_ON_SITE:
+            "Resuelto en sitio",
+
+        TEMPORARY_MITIGATION:
+            "Mitigación temporal",
+
+        NO_INCIDENT_FOUND:
+            "No se encontró incidencia",
+
+        DUPLICATE:
+            "Duplicado",
+
+        OUT_OF_SCOPE:
+            "Fuera de competencia",
+
+        FOLLOW_UP_REQUIRED:
+            "Seguimiento requerido",
+    };
+
 type Report = {
     id: string;
     title?: string;
@@ -26,10 +47,57 @@ type Report = {
     address?: string;
     latitude?: number;
     longitude?: number;
+
     evidences?: {
         imageUrl: string;
     }[];
+
+    fieldWork?: {
+        arrivedAt?: string | null;
+        closedAt?: string | null;
+        notes?: string | null;
+        distanceMeters?: number | null;
+        evidences?: {
+            id: string;
+            imageUrl: string;
+            phase: "BEFORE" | "AFTER";
+        }[];
+    } | null;
+
+    technicalAttentions?: {
+        id: string;
+        actionTaken: string;
+        technicalResult: string;
+        observations?: string | null;
+        createdAt: string;
+    }[];
+
+    technicalClosure?: {
+        id: string;
+        result: string;
+        observations: string;
+        closureEvidenceUrl?: string | null;
+        followUpRequired: boolean;
+        followUpNotes?: string | null;
+        closedAt: string;
+        technician?: {
+            firstName: string;
+            lastName: string;
+            email: string;
+        };
+    } | null;
 };
+
+function formatDateTime(
+    value?: string | null
+) {
+    if (!value) {
+        return "No registrado";
+    }
+
+    return new Date(value)
+        .toLocaleString();
+}
 
 export default function TechnicianReportDetailPage() {
     const { id } =
@@ -59,6 +127,13 @@ export default function TechnicianReportDetailPage() {
 
                 const data =
                     await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        data?.message ||
+                        "No se pudo cargar el trabajo."
+                    );
+                }
 
                 setReport(data);
 
@@ -154,6 +229,21 @@ export default function TechnicianReportDetailPage() {
     const imageUrl =
         report.evidences?.[0]?.imageUrl ||
         "https://placehold.co/1200x600?text=Sin+evidencia";
+
+    const beforeEvidences =
+        report.fieldWork?.evidences
+            ?.filter((evidence) =>
+                evidence.phase === "BEFORE"
+            ) || [];
+
+    const afterEvidences =
+        report.fieldWork?.evidences
+            ?.filter((evidence) =>
+                evidence.phase === "AFTER"
+            ) || [];
+
+    const latestAttention =
+        report.technicalAttentions?.[0];
 
     return (
         <div className="
@@ -303,6 +393,32 @@ export default function TechnicianReportDetailPage() {
                                     Abrir en Google Maps
                                 </a>
                             )}
+
+                            {report.fieldWork && (
+                                <>
+                                    <p>
+                                        <strong>Llegada:</strong>{" "}
+                                        {formatDateTime(report.fieldWork.arrivedAt)}
+                                    </p>
+
+                                    <p>
+                                        <strong>Cierre de visita:</strong>{" "}
+                                        {formatDateTime(report.fieldWork.closedAt)}
+                                    </p>
+
+                                    <p>
+                                        <strong>Distancia registrada:</strong>{" "}
+                                        {
+                                            report.fieldWork.distanceMeters !==
+                                            null &&
+                                            report.fieldWork.distanceMeters !==
+                                            undefined
+                                                ? `${report.fieldWork.distanceMeters} m`
+                                                : "No calculada"
+                                        }
+                                    </p>
+                                </>
+                            )}
                         </div>
                     </div>
 
@@ -321,101 +437,344 @@ export default function TechnicianReportDetailPage() {
                             Acciones del técnico
                         </h2>
 
-                        <div className="
-                            flex
-                            flex-wrap
-                            gap-4
-                        ">
-                            {report.status === "ASSIGNED" && (
+                        {report.status === "ASSIGNED" && (
+                            <button
+                                disabled={submitting}
+                                onClick={() =>
+                                    updateStatus("IN_TRANSIT")
+                                }
+                                className="
+                                    bg-yellow-500
+                                    hover:bg-yellow-600
+                                    disabled:bg-gray-400
+                                    text-white
+                                    rounded-xl
+                                    px-5
+                                    py-3
+                                    font-bold
+                                "
+                            >
+                                Iniciar traslado
+                            </button>
+                        )}
+
+                        {report.status === "IN_TRANSIT" && (
+                            <button
+                                disabled={submitting}
+                                onClick={() =>
+                                    updateStatus("IN_PROGRESS")
+                                }
+                                className="
+                                    bg-blue-700
+                                    hover:bg-blue-800
+                                    disabled:bg-gray-400
+                                    text-white
+                                    rounded-xl
+                                    px-5
+                                    py-3
+                                    font-bold
+                                "
+                            >
+                                Iniciar atención
+                            </button>
+                        )}
+
+                        {report.status === "IN_PROGRESS" && (
+                            <div className="
+                                grid
+                                grid-cols-1
+                                md:grid-cols-3
+                                gap-4
+                            ">
                                 <button
-                                    disabled={submitting}
                                     onClick={() =>
-                                        updateStatus("IN_TRANSIT")
+                                        navigate(
+                                            `/technician/reports/${report.id}/attend`
+                                        )
                                     }
                                     className="
-                                        bg-yellow-500
-                                        hover:bg-yellow-600
-                                        disabled:bg-gray-400
+                                        bg-green-700
                                         text-white
-                                        rounded-xl
-                                        px-5
-                                        py-3
                                         font-bold
+                                        rounded-2xl
+                                        py-4
+                                        hover:bg-green-800
+                                        transition
                                     "
                                 >
-                                    Iniciar traslado
+                                    Atender reporte
                                 </button>
-                            )}
 
-                            {report.status === "IN_TRANSIT" && (
                                 <button
-                                    disabled={submitting}
                                     onClick={() =>
-                                        updateStatus("IN_PROGRESS")
+                                        navigate(
+                                            `/technician/reports/${report.id}/fieldwork`
+                                        )
                                     }
                                     className="
                                         bg-blue-700
-                                        hover:bg-blue-800
-                                        disabled:bg-gray-400
                                         text-white
-                                        rounded-xl
-                                        px-5
-                                        py-3
                                         font-bold
+                                        rounded-2xl
+                                        py-4
+                                        hover:bg-blue-800
+                                        transition
                                     "
                                 >
-                                    Iniciar atención
+                                    Registrar evidencia y trazabilidad
                                 </button>
 
-                                
-                            )}
-                            {report.status === "IN_PROGRESS" && (
-                                <div className="
-                                    space-y-3
-                                    mt-6
-                                ">
-                                    <button
-                                        onClick={() =>
-                                            navigate(
-                                                `/technician/reports/${report.id}/attend`
-                                            )
-                                        }
-                                        className="
-                                            w-full
-                                            bg-green-700
-                                            text-white
-                                            font-bold
-                                            rounded-2xl
-                                            py-4
-                                            hover:bg-green-800
-                                            transition
-                                        "
-                                    >
-                                        Atender reporte
-                                    </button>
+                                <button
+                                    onClick={() =>
+                                        navigate(
+                                            `/technician/reports/${report.id}/closure`
+                                        )
+                                    }
+                                    className="
+                                        bg-[#03152E]
+                                        text-white
+                                        font-bold
+                                        rounded-2xl
+                                        py-4
+                                        hover:bg-black
+                                        transition
+                                    "
+                                >
+                                    Registrar resultado técnico y cerrar
+                                </button>
+                            </div>
+                        )}
 
-                                    <button
-                                        onClick={() =>
-                                            navigate(
-                                                `/technician/reports/${report.id}/fieldwork`
-                                            )
-                                        }
-                                        className="
-                                            w-full
-                                            bg-blue-700
-                                            text-white
+                        {report.status === "RESOLVED" && (
+                            <div className="
+                                space-y-6
+                            ">
+                                {report.technicalClosure ? (
+                                    <div className="
+                                        bg-white
+                                        border
+                                        rounded-2xl
+                                        p-6
+                                        space-y-4
+                                    ">
+                                        <h3 className="
+                                            text-xl
                                             font-bold
-                                            rounded-2xl
-                                            py-4
-                                            hover:bg-blue-800
-                                            transition
-                                        "
-                                    >
-                                        Registrar evidencia y trazabilidad
-                                    </button>
+                                            text-[#03152E]
+                                        ">
+                                            Cierre operativo registrado
+                                        </h3>
+
+                                        <p>
+                                            <strong>Resultado técnico:</strong>{" "}
+                                            {
+                                                technicalClosureResultLabels[
+                                                    report.technicalClosure.result
+                                                ] ||
+                                                report.technicalClosure.result
+                                            }
+                                        </p>
+
+                                        <p>
+                                            <strong>Observaciones de cierre:</strong>{" "}
+                                            {report.technicalClosure.observations}
+                                        </p>
+
+                                        {report.technicalClosure.followUpRequired && (
+                                            <p>
+                                                <strong>Seguimiento requerido:</strong>{" "}
+                                                {
+                                                    report.technicalClosure.followUpNotes ||
+                                                    "No indicado"
+                                                }
+                                            </p>
+                                        )}
+
+                                        <p>
+                                            <strong>Fecha de cierre:</strong>{" "}
+                                            {
+                                                formatDateTime(
+                                                    report.technicalClosure.closedAt
+                                                )
+                                            }
+                                        </p>
+
+                                        {report.technicalClosure.technician && (
+                                            <p>
+                                                <strong>Técnico responsable:</strong>{" "}
+                                                {
+                                                    `${report.technicalClosure.technician.firstName} ${report.technicalClosure.technician.lastName}`
+                                                }
+                                            </p>
+                                        )}
+
+                                        {report.technicalClosure.closureEvidenceUrl && (
+                                            <img
+                                                src={report.technicalClosure.closureEvidenceUrl}
+                                                alt="Evidencia de cierre"
+                                                className="
+                                                    w-full
+                                                    max-w-md
+                                                    rounded-2xl
+                                                    border
+                                                    object-cover
+                                                "
+                                            />
+                                        )}
+                                    </div>
+                                ) : (
+                                    <p className="
+                                        text-gray-500
+                                    ">
+                                        El reporte está resuelto, pero aún no se encontró un cierre técnico registrado.
+                                    </p>
+                                )}
+
+                                {latestAttention && (
+                                    <div className="
+                                        bg-white
+                                        border
+                                        rounded-2xl
+                                        p-6
+                                        space-y-3
+                                    ">
+                                        <h3 className="
+                                            text-xl
+                                            font-bold
+                                            text-[#03152E]
+                                        ">
+                                            Atención técnica previa
+                                        </h3>
+
+                                        <p>
+                                            <strong>Acción realizada:</strong>{" "}
+                                            {latestAttention.actionTaken}
+                                        </p>
+
+                                        <p>
+                                            <strong>Resultado técnico:</strong>{" "}
+                                            {latestAttention.technicalResult}
+                                        </p>
+
+                                        <p>
+                                            <strong>Observaciones:</strong>{" "}
+                                            {
+                                                latestAttention.observations ||
+                                                "Sin observaciones"
+                                            }
+                                        </p>
+                                    </div>
+                                )}
+
+                                <div className="
+                                    bg-white
+                                    border
+                                    rounded-2xl
+                                    p-6
+                                    space-y-4
+                                ">
+                                    <h3 className="
+                                        text-xl
+                                        font-bold
+                                        text-[#03152E]
+                                    ">
+                                        Evidencias de campo
+                                    </h3>
+
+                                    <div className="
+                                        grid
+                                        grid-cols-1
+                                        md:grid-cols-2
+                                        gap-6
+                                    ">
+                                        <div>
+                                            <p className="
+                                                font-bold
+                                                mb-3
+                                            ">
+                                                Fotos antes
+                                            </p>
+
+                                            <div className="
+                                                grid
+                                                grid-cols-2
+                                                gap-3
+                                            ">
+                                                {beforeEvidences.length > 0 ? (
+                                                    beforeEvidences.map((evidence) => (
+                                                        <img
+                                                            key={evidence.id}
+                                                            src={evidence.imageUrl}
+                                                            alt="Antes"
+                                                            className="
+                                                                h-[120px]
+                                                                w-full
+                                                                object-cover
+                                                                rounded-xl
+                                                                border
+                                                            "
+                                                        />
+                                                    ))
+                                                ) : (
+                                                    <p className="text-gray-500">
+                                                        Sin fotos antes.
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <p className="
+                                                font-bold
+                                                mb-3
+                                            ">
+                                                Fotos después
+                                            </p>
+
+                                            <div className="
+                                                grid
+                                                grid-cols-2
+                                                gap-3
+                                            ">
+                                                {afterEvidences.length > 0 ? (
+                                                    afterEvidences.map((evidence) => (
+                                                        <img
+                                                            key={evidence.id}
+                                                            src={evidence.imageUrl}
+                                                            alt="Después"
+                                                            className="
+                                                                h-[120px]
+                                                                w-full
+                                                                object-cover
+                                                                rounded-xl
+                                                                border
+                                                            "
+                                                        />
+                                                    ))
+                                                ) : (
+                                                    <p className="text-gray-500">
+                                                        Sin fotos después.
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        )}
+
+                        {![
+                            "ASSIGNED",
+                            "IN_TRANSIT",
+                            "IN_PROGRESS",
+                            "RESOLVED",
+                        ].includes(report.status) && (
+                            <p className="
+                                text-gray-500
+                            ">
+                                No hay acciones disponibles para este estado.
+                            </p>
+                        )}
                     </div>
                 </div>
             </div>

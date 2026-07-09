@@ -45,6 +45,8 @@ model User {
 
   municipalityId String?
   municipality   Municipality? @relation(fields: [municipalityId], references: [id])
+
+  technicalClosures TechnicalClosure[]
 }
 
 enum Role {
@@ -106,6 +108,8 @@ model Report {
 
   municipalityId String?
   municipality   Municipality? @relation(fields: [municipalityId], references: [id])
+
+  technicalClosure TechnicalClosure?
 
   @@index([userId])
 }
@@ -389,4 +393,39 @@ model FieldWorkEvidence {
   createdAt DateTime @default(now())
 
   @@index([fieldWorkId])
+}
+
+enum TechnicalClosureResult {
+  RESOLVED_ON_SITE
+  TEMPORARY_MITIGATION
+  NO_INCIDENT_FOUND
+  DUPLICATE
+  OUT_OF_SCOPE
+  FOLLOW_UP_REQUIRED
+}
+
+model TechnicalClosure {
+  id String @id @default(uuid())
+
+  reportId String @unique
+  report   Report @relation(fields: [reportId], references: [id])
+
+  technicianId String
+  technician   User   @relation(fields: [technicianId], references: [id])
+
+  result TechnicalClosureResult
+
+  observations String
+
+  closureEvidenceUrl String?
+
+  followUpRequired Boolean @default(false)
+  followUpNotes    String?
+
+  closedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([technicianId])
 }
