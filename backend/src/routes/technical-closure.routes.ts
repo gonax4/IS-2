@@ -9,14 +9,16 @@ import {
 const router =
   Router();
 
-router.get(
-  "/report/:reportId",
-  TechnicalClosureController.getByReport
-);
-
 router.post(
   "/",
-  TechnicalClosureController.create
+  TechnicalClosureController.createClosure
 );
+
+router.get(
+  "/report/:reportId",
+  TechnicalClosureController.getByReportId
+);
+
+
 
 export default router;

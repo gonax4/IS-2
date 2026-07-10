@@ -27,6 +27,7 @@ export class EmailService {
       `,
     });
   }
+
   async sendPasswordResetEmail(email: string, token: string) {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
 
@@ -42,6 +43,19 @@ export class EmailService {
         <p>Este enlace expirará en 1 hora.</p>
         <p>Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
       `,
+    });
+  }
+
+  async sendEmail(data: {
+    to: string;
+    subject: string;
+    html: string;
+  }) {
+    await this.transporter.sendMail({
+      from: process.env.SMTP_FROM,
+      to: data.to,
+      subject: data.subject,
+      html: data.html,
     });
   }
 }

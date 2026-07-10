@@ -4,10 +4,6 @@ import {
 } from "express";
 
 import {
-  TechnicalClosureResult,
-} from "@prisma/client";
-
-import {
   TechnicalClosureService,
 } from "../services/technical-closure.service";
 
@@ -15,30 +11,7 @@ const technicalClosureService =
   new TechnicalClosureService();
 
 export class TechnicalClosureController {
-  static async getByReport(
-    req: Request,
-    res: Response
-  ) {
-    try {
-      const reportId =
-        String(req.params.reportId);
-
-      const closure =
-        await technicalClosureService
-          .getByReport(reportId);
-
-      return res.json(closure);
-
-    } catch (error: any) {
-      return res.status(400).json({
-        message:
-          error.message ||
-          "Error al obtener cierre técnico.",
-      });
-    }
-  }
-
-  static async create(
+  static async createClosure(
     req: Request,
     res: Response
   ) {
@@ -47,16 +20,19 @@ export class TechnicalClosureController {
         await technicalClosureService
           .createClosure({
             reportId:
-              String(req.body.reportId || ""),
+              req.body.reportId,
 
             technicianId:
-              String(req.body.technicianId || ""),
+              req.body.technicianId,
 
             result:
-              req.body.result as TechnicalClosureResult,
+              req.body.result,
+
+            closureReasonId:
+              req.body.closureReasonId,
 
             observations:
-              String(req.body.observations || ""),
+              req.body.observations,
 
             closureEvidenceUrl:
               req.body.closureEvidenceUrl,
@@ -65,17 +41,35 @@ export class TechnicalClosureController {
               req.body.followUpNotes,
           });
 
-      return res.status(201).json({
-        message:
-          "Cierre técnico registrado correctamente.",
-        closure,
-      });
+      return res.status(201).json(closure);
 
     } catch (error: any) {
       return res.status(400).json({
         message:
           error.message ||
-          "Error al registrar cierre técnico.",
+          "Error al registrar el cierre técnico.",
+      });
+    }
+  }
+
+  static async getByReportId(
+    req: Request,
+    res: Response
+  ) {
+    try {
+      const closure =
+        await technicalClosureService
+          .getByReportId(
+            String(req.params.reportId)
+          );
+
+      return res.json(closure);
+
+    } catch (error: any) {
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al obtener el cierre técnico.",
       });
     }
   }

@@ -8,12 +8,15 @@ import {
 } from "@prisma/client";
 
 type CreateReportInput = {
-
   title: string;
 
-  category: ReportCategory;
+  category: ReportCategory | string;
 
   problemType: string;
+
+  categoryId?: string;
+
+  problemTypeId?: string;
 
   description: string;
 
@@ -32,6 +35,51 @@ type CreateReportInput = {
   municipalityId?: string;
 };
 
+const normalizeReportCategory = (
+  category?: ReportCategory | string
+): ReportCategory => {
+  if (!category) {
+    return ReportCategory.INFRASTRUCTURE;
+  }
+
+  const value =
+    String(category).toUpperCase();
+
+  if (
+    value === ReportCategory.SECURITY ||
+    value.includes("SEGURIDAD")
+  ) {
+    return ReportCategory.SECURITY;
+  }
+
+  if (
+    value === ReportCategory.ENVIRONMENT ||
+    value.includes("AMBIENTE") ||
+    value.includes("LIMPIEZA")
+  ) {
+    return ReportCategory.ENVIRONMENT;
+  }
+
+  if (
+    value === ReportCategory.MOBILITY ||
+    value.includes("MOVILIDAD") ||
+    value.includes("TRÁNSITO") ||
+    value.includes("TRANSITO")
+  ) {
+    return ReportCategory.MOBILITY;
+  }
+
+  if (
+    value === ReportCategory.INFRASTRUCTURE ||
+    value.includes("INFRAESTRUCTURA") ||
+    value.includes("SERVICIOS")
+  ) {
+    return ReportCategory.INFRASTRUCTURE;
+  }
+
+  return ReportCategory.INFRASTRUCTURE;
+};
+
 const getResolvedVisibilityDate = () => {
   const thirtyDaysAgo =
     new Date();
@@ -48,9 +96,49 @@ export class ReportRepository {
   async create(
     data: CreateReportInput
   ) {
-
     return await prisma.report.create({
-      data,
+      data: {
+        title:
+          data.title,
+
+        category:
+          normalizeReportCategory(
+            data.category
+          ),
+
+        problemType:
+          data.problemType,
+
+        categoryId:
+          data.categoryId,
+
+        problemTypeId:
+          data.problemTypeId,
+
+        description:
+          data.description,
+
+        latitude:
+          data.latitude,
+
+        longitude:
+          data.longitude,
+
+        address:
+          data.address,
+
+        isAnonymous:
+          data.isAnonymous ?? false,
+
+        userId:
+          data.userId,
+
+        status:
+          data.status,
+
+        municipalityId:
+          data.municipalityId,
+      },
     });
   }
 
@@ -414,6 +502,8 @@ async findByProblemType(problemType: string) {
 
         technicalClosure: {
           include: {
+            closureReason: true,
+
             technician: {
               select: {
                 id: true,

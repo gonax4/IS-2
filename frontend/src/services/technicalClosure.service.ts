@@ -7,25 +7,49 @@ const API_BASE =
         ? API_URL
         : `${API_URL}/api`;
 
-export type TechnicalClosureResult =
-    "RESOLVED_ON_SITE" |
-    "TEMPORARY_MITIGATION" |
-    "NO_INCIDENT_FOUND" |
-    "DUPLICATE" |
-    "OUT_OF_SCOPE" |
-    "FOLLOW_UP_REQUIRED";
-
-export type TechnicalClosureRequest = {
+export type TechnicalClosure = {
+    id: string;
     reportId: string;
     technicianId: string;
-    result: TechnicalClosureResult;
+    result: string;
+    closureReasonId?: string | null;
+    observations: string;
+    closureEvidenceUrl?: string | null;
+    followUpRequired: boolean;
+    followUpNotes?: string | null;
+    closedAt: string;
+};
+
+export type CreateTechnicalClosureInput = {
+    reportId: string;
+    technicianId: string;
+    result?: string;
+    closureReasonId?: string;
     observations: string;
     closureEvidenceUrl?: string;
     followUpNotes?: string;
 };
 
+async function parseResponse(
+    response: Response,
+    fallbackMessage: string
+) {
+    const result =
+        await response.json()
+            .catch(() => null);
+
+    if (!response.ok) {
+        throw new Error(
+            result?.message ||
+            fallbackMessage
+        );
+    }
+
+    return result;
+}
+
 export const technicalClosureResultLabels:
-    Record<TechnicalClosureResult, string> = {
+    Record<string, string> = {
         RESOLVED_ON_SITE:
             "Resuelto en sitio",
 
@@ -46,7 +70,7 @@ export const technicalClosureResultLabels:
     };
 
 export const technicalClosureResultDescriptions:
-    Record<TechnicalClosureResult, string> = {
+    Record<string, string> = {
         RESOLVED_ON_SITE:
             "El problema fue atendido completamente en el lugar.",
 
@@ -66,24 +90,19 @@ export const technicalClosureResultDescriptions:
             "Se requiere una nueva visita, tarea complementaria o seguimiento posterior.",
     };
 
-export const TechnicalClosureService = {
-    async getByReport(
-        reportId: string
-    ) {
-        const response =
-            await fetch(
-                `${API_BASE}/technical-closures/report/${reportId}`
-            );
-
-        if (!response.ok) {
-            return null;
+export const getTechnicalClosureResultLabel =
+    (result?: string | null) => {
+        if (!result) {
+            return "No definido";
         }
 
-        return await response.json();
-    },
+        return technicalClosureResultLabels[result] ||
+            result;
+    };
 
+export const TechnicalClosureService = {
     async createClosure(
-        data: TechnicalClosureRequest
+        data: CreateTechnicalClosureInput
     ) {
         const response =
             await fetch(
@@ -93,21 +112,28 @@ export const TechnicalClosureService = {
                     headers: {
                         "Content-Type": "application/json",
                     },
-                    body: JSON.stringify(data),
+                    body:
+                        JSON.stringify(data),
                 }
             );
 
-        const result =
-            await response.json()
-                .catch(() => null);
+        return await parseResponse(
+            response,
+            "No se pudo registrar el cierre técnico."
+        ) as TechnicalClosure;
+    },
 
-        if (!response.ok) {
-            throw new Error(
-                result?.message ||
-                "No se pudo registrar el cierre técnico."
+    async getByReportId(
+        reportId: string
+    ) {
+        const response =
+            await fetch(
+                `${API_BASE}/technical-closures/report/${reportId}`
             );
-        }
 
-        return result;
+        return await parseResponse(
+            response,
+            "No se pudo obtener el cierre técnico."
+        ) as TechnicalClosure | null;
     },
 };

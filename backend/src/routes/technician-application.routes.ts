@@ -15,6 +15,13 @@ router.post(
 );
 
 router.get(
+  "/verify-email",
+  technicianApplicationController.verifyEmail.bind(
+    technicianApplicationController
+  )
+);
+
+router.get(
   "/",
   technicianApplicationController.getAll.bind(
     technicianApplicationController

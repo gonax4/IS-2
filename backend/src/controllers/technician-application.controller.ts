@@ -29,6 +29,31 @@ export class TechnicianApplicationController {
     }
   }
 
+  async verifyEmail(req: Request, res: Response) {
+    try {
+      const token =
+        String(req.query.token || "");
+
+      const application =
+        await technicianApplicationService.verifyEmail(
+          token
+        );
+
+      return res.json({
+        message:
+          "Correo verificado correctamente. Tu postulación ya puede ser revisada por el operador.",
+        application,
+      });
+
+    } catch (error: any) {
+      return res.status(400).json({
+        message:
+          error.message ||
+          "No se pudo verificar el correo.",
+      });
+    }
+  }
+
   async getPending(req: Request, res: Response) {
     try {
       const operatorId =

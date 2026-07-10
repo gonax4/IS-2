@@ -15,13 +15,15 @@ import {
 
 import {
     TechnicalClosureService,
-    technicalClosureResultDescriptions,
-    technicalClosureResultLabels,
 } from "../services/technicalClosure.service";
 
+import {
+    OperationalCatalogService,
+} from "../services/operationalCatalog.service";
+
 import type {
-    TechnicalClosureResult,
-} from "../services/technicalClosure.service";
+    ClosureReason,
+} from "../services/operationalCatalog.service";
 
 const API_URL =
     import.meta.env.VITE_API_URL ||
@@ -157,15 +159,6 @@ function formatDateTime(
         .toLocaleString();
 }
 
-const closureResults:
-    TechnicalClosureResult[] = [
-        "RESOLVED_ON_SITE",
-        "TEMPORARY_MITIGATION",
-        "NO_INCIDENT_FOUND",
-        "DUPLICATE",
-        "OUT_OF_SCOPE",
-        "FOLLOW_UP_REQUIRED",
-    ];
 
 export default function TechnicianClosurePage() {
     const navigate =
@@ -177,8 +170,11 @@ export default function TechnicianClosurePage() {
     const [report, setReport] =
         useState<Report | null>(null);
 
+    const [selectedClosureReasonId, setSelectedClosureReasonId] =
+        useState("");
+
     const [selectedResult, setSelectedResult] =
-        useState<TechnicalClosureResult | "">("");
+        useState("");
 
     const [observations, setObservations] =
         useState("");
@@ -201,6 +197,13 @@ export default function TechnicianClosurePage() {
     const [successMessage, setSuccessMessage] =
         useState("");
 
+    const [closureReasons, setClosureReasons] =
+        useState<ClosureReason[]>([]);
+
+    const [loadingReasons, setLoadingReasons] =
+        useState(true);
+
+
     const technicianId =
         localStorage.getItem("userId") || "";
 
@@ -210,6 +213,32 @@ export default function TechnicianClosurePage() {
                 ?.technicalAttentions
                 ?.[0];
         }, [report]);
+
+    const selectedClosureReason =
+        useMemo(() => {
+            return closureReasons.find(
+                (reason) =>
+                    reason.id === selectedClosureReasonId
+            );
+        }, [
+            closureReasons,
+            selectedClosureReasonId,
+        ]);
+
+    const requiresFollowUp =
+        useMemo(() => {
+            if (!selectedClosureReason) {
+                return false;
+            }
+
+            const value =
+                selectedClosureReason.name
+                    .toUpperCase()
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "");
+
+            return value.includes("SEGUIMIENTO");
+        }, [selectedClosureReason]);
 
     const beforeEvidences =
         report?.fieldWork?.evidences
@@ -261,6 +290,34 @@ export default function TechnicianClosurePage() {
         fetchReport();
     }, [id]);
 
+
+    
+    useEffect(() => {
+        const loadClosureReasons =
+            async () => {
+                try {
+                    setLoadingReasons(true);
+
+                    const data =
+                        await OperationalCatalogService
+                            .getActiveClosureReasons();
+
+                    setClosureReasons(data);
+
+                } catch (error) {
+                    console.error(
+                        "No se pudieron cargar los motivos de cierre.",
+                        error
+                    );
+
+                } finally {
+                    setLoadingReasons(false);
+                }
+            };
+
+        loadClosureReasons();
+    }, []);
+
     const handleEvidenceChange =
         async (
             event: React.ChangeEvent<HTMLInputElement>
@@ -294,10 +351,11 @@ export default function TechnicianClosurePage() {
         };
 
     const canSubmit =
-        selectedResult &&
+        selectedClosureReasonId &&
+        selectedResult.trim() &&
         observations.trim() &&
         (
-            selectedResult !== "FOLLOW_UP_REQUIRED" ||
+            !requiresFollowUp ||
             followUpNotes.trim()
         ) &&
         !saving;
@@ -339,7 +397,6 @@ export default function TechnicianClosurePage() {
                 setSaving(true);
                 setError("");
                 setSuccessMessage("");
-
                 await TechnicalClosureService
                     .createClosure({
                         reportId:
@@ -348,7 +405,10 @@ export default function TechnicianClosurePage() {
                         technicianId,
 
                         result:
-                            selectedResult as TechnicalClosureResult,
+                            selectedResult,
+
+                        closureReasonId:
+                            selectedClosureReasonId,
 
                         observations,
 
@@ -769,9 +829,24 @@ export default function TechnicianClosurePage() {
                                     md:grid-cols-2
                                     gap-4
                                 ">
-                                    {closureResults.map((result) => (
+                                   {loadingReasons ? (
+                                    <p className="
+                                        text-gray-500
+                                        font-semibold
+                                    ">
+                                        Cargando resultados técnicos...
+                                    </p>
+                                ) : closureReasons.length === 0 ? (
+                                    <p className="
+                                        text-red-600
+                                        font-semibold
+                                    ">
+                                        No existen resultados técnicos activos configurados.
+                                    </p>
+                                ) : (
+                                    closureReasons.map((reason) => (
                                         <label
-                                            key={result}
+                                            key={reason.id}
                                             className={`
                                                 border
                                                 rounded-2xl
@@ -780,7 +855,7 @@ export default function TechnicianClosurePage() {
                                                 bg-white
                                                 transition
                                                 ${
-                                                    selectedResult === result
+                                                    selectedClosureReasonId === reason.id
                                                         ? "border-blue-600 ring-2 ring-blue-100"
                                                         : "hover:bg-gray-50"
                                                 }
@@ -789,13 +864,19 @@ export default function TechnicianClosurePage() {
                                             <input
                                                 type="radio"
                                                 name="result"
-                                                value={result}
+                                                value={reason.id}
                                                 checked={
-                                                    selectedResult === result
+                                                    selectedClosureReasonId === reason.id
                                                 }
-                                                onChange={() =>
-                                                    setSelectedResult(result)
-                                                }
+                                                onChange={() => {
+                                                    setSelectedClosureReasonId(
+                                                        reason.id
+                                                    );
+
+                                                    setSelectedResult(
+                                                        reason.name
+                                                    );
+                                                }}
                                                 className="mr-2"
                                             />
 
@@ -803,9 +884,7 @@ export default function TechnicianClosurePage() {
                                                 font-bold
                                                 text-[#03152E]
                                             ">
-                                                {
-                                                    technicalClosureResultLabels[result]
-                                                }
+                                                {reason.name}
                                             </span>
 
                                             <p className="
@@ -813,16 +892,15 @@ export default function TechnicianClosurePage() {
                                                 text-gray-500
                                                 mt-2
                                             ">
-                                                {
-                                                    technicalClosureResultDescriptions[result]
-                                                }
+                                                {reason.description || "Sin descripción."}
                                             </p>
                                         </label>
-                                    ))}
+                                    ))
+                                )}
                                 </div>
                             </div>
 
-                            {selectedResult === "FOLLOW_UP_REQUIRED" && (
+                            {requiresFollowUp && (
                                 <div className="
                                     bg-yellow-50
                                     border

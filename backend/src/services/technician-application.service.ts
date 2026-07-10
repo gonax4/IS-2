@@ -1,10 +1,27 @@
-import { TechnicianApplicationRepository } from "../repositories/technician-application.repository";
+import crypto from "crypto";
+
+import {
+  TechnicianApplicationRepository,
+} from "../repositories/technician-application.repository";
+
+import {
+  EmailService,
+} from "./email.service";
 
 const technicianApplicationRepository =
   new TechnicianApplicationRepository();
 
-export class TechnicianApplicationService {
+const emailService =
+  new EmailService();
 
+const FRONTEND_URL =
+  process.env.FRONTEND_URL ||
+  "http://localhost:5173";
+
+const emailRegex =
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export class TechnicianApplicationService {
   async createApplication(data: {
     firstName: string;
     lastName: string;
@@ -15,9 +32,36 @@ export class TechnicianApplicationService {
     skills: string[];
     experience?: string;
   }) {
+    if (!data.firstName?.trim()) {
+      throw new Error("Los nombres son obligatorios.");
+    }
 
-    if (!data.firstName || !data.lastName || !data.email) {
-      throw new Error("Nombre, apellido y correo son obligatorios.");
+    if (!data.lastName?.trim()) {
+      throw new Error("Los apellidos son obligatorios.");
+    }
+
+    if (!data.email?.trim()) {
+      throw new Error("El correo es obligatorio.");
+    }
+
+    if (!emailRegex.test(data.email.trim())) {
+      throw new Error("Ingresa un correo válido.");
+    }
+
+    if (!data.phone?.trim()) {
+      throw new Error("El teléfono es obligatorio.");
+    }
+
+    if (!/^\d{9}$/.test(data.phone.trim())) {
+      throw new Error("El teléfono debe tener 9 dígitos.");
+    }
+
+    if (!data.dni?.trim()) {
+      throw new Error("El DNI es obligatorio.");
+    }
+
+    if (!/^\d{8}$/.test(data.dni.trim())) {
+      throw new Error("El DNI debe tener 8 dígitos.");
     }
 
     if (!data.municipalityId) {
@@ -28,9 +72,16 @@ export class TechnicianApplicationService {
       throw new Error("Debe seleccionar al menos una habilidad.");
     }
 
+    if (!data.experience?.trim()) {
+      throw new Error("La experiencia es obligatoria.");
+    }
+
+    const email =
+      data.email.trim().toLowerCase();
+
     const existingUser =
       await technicianApplicationRepository.findUserByEmail(
-        data.email
+        email
       );
 
     if (existingUser) {
@@ -39,7 +90,120 @@ export class TechnicianApplicationService {
       );
     }
 
-    return await technicianApplicationRepository.create(data);
+    const existingApplication =
+      await technicianApplicationRepository.findByEmail(
+        email
+      );
+
+    if (existingApplication) {
+      throw new Error(
+        "Ya existe una postulación registrada con este correo."
+      );
+    }
+
+    const emailVerificationToken =
+      crypto.randomBytes(32).toString("hex");
+
+    const emailVerificationExpires =
+      new Date(
+        Date.now() + 1000 * 60 * 60 * 24
+      );
+
+    const application =
+      await technicianApplicationRepository.create({
+        firstName:
+          data.firstName.trim(),
+
+        lastName:
+          data.lastName.trim(),
+
+        email,
+
+        phone:
+          data.phone.trim(),
+
+        dni:
+          data.dni.trim(),
+
+        municipalityId:
+          data.municipalityId,
+
+        skills:
+          data.skills,
+
+        experience:
+          data.experience.trim(),
+
+        emailVerified:
+          false,
+
+        emailVerificationToken,
+
+        emailVerificationExpires,
+      });
+
+    const verificationUrl =
+      `${FRONTEND_URL}/technician-application/verify-email?token=${emailVerificationToken}`;
+
+    await emailService.sendEmail({
+      to:
+        email,
+
+      subject:
+        "Verifica tu correo para completar tu postulación técnica",
+
+      html: `
+        <h2>Verificación de postulación técnica</h2>
+
+        <p>Hola ${application.firstName},</p>
+
+        <p>Para completar tu postulación como técnico de campo, debes verificar tu correo.</p>
+
+        <p>
+          <a href="${verificationUrl}">
+            Verificar correo
+          </a>
+        </p>
+
+        <p>Este enlace vencerá en 24 horas.</p>
+      `,
+    });
+
+    return application;
+  }
+
+  async verifyEmail(
+    token: string
+  ) {
+    if (!token) {
+      throw new Error("Token inválido.");
+    }
+
+    const application =
+      await technicianApplicationRepository
+        .findByVerificationToken(token);
+
+    if (!application) {
+      throw new Error(
+        "Token inválido o postulación no encontrada."
+      );
+    }
+
+    if (application.emailVerified) {
+      return application;
+    }
+
+    if (
+      !application.emailVerificationExpires ||
+      application.emailVerificationExpires < new Date()
+    ) {
+      throw new Error(
+        "El enlace de verificación ha vencido."
+      );
+    }
+
+    return await technicianApplicationRepository
+      .verifyEmail(application.id);
   }
 
   async getPendingApplications() {
@@ -80,6 +244,20 @@ export class TechnicianApplicationService {
     applicationId: string,
     reviewedById?: string
   ) {
+    const application =
+      await technicianApplicationRepository
+        .findById(applicationId);
+
+    if (!application) {
+      throw new Error("Postulación no encontrada.");
+    }
+
+    if (!application.emailVerified) {
+      throw new Error(
+        "No se puede aprobar la postulación porque el correo aún no fue verificado."
+      );
+    }
+
     return await technicianApplicationRepository.approve(
       applicationId,
       reviewedById

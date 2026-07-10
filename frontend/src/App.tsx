@@ -67,6 +67,9 @@ import OperatorMonitoringPage
 import OperatorCatalogPage 
   from "./pages/OperatorCatalogPage";
 
+import TechnicianApplicationVerifyEmailPage
+  from "./pages/TechnicianApplicationVerifyEmailPage";
+
 function getDashboardByRole(
   role: string | null
 ) {
@@ -161,6 +164,11 @@ export default function App() {
       <Route
         path="/verify-email"
         element={<VerifyEmailPage />}
+      />
+
+      <Route
+        path="/technician-application/verify-email"
+        element={<TechnicianApplicationVerifyEmailPage />}
       />
 
       <Route

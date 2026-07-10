@@ -1,134 +1,97 @@
 import {
-  Status,
-  TechnicalClosureResult,
-} from "@prisma/client";
-
-import {
   TechnicalClosureRepository,
 } from "../repositories/technical-closure.repository";
 
 const technicalClosureRepository =
   new TechnicalClosureRepository();
 
-export class TechnicalClosureService {
-  async getByReport(
-    reportId: string
-  ) {
-    return await technicalClosureRepository
-      .findByReport(reportId);
-  }
+type CreateTechnicalClosureInput = {
+  reportId: string;
+  technicianId: string;
+  result?: string;
+  closureReasonId?: string;
+  observations: string;
+  closureEvidenceUrl?: string;
+  followUpNotes?: string;
+};
 
-  async createClosure(data: {
-    reportId: string;
-    technicianId: string;
-    result: TechnicalClosureResult;
-    observations: string;
-    closureEvidenceUrl?: string;
-    followUpNotes?: string;
-  }) {
+function isFollowUpReason(
+  reasonName: string
+) {
+  const value =
+    reasonName
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+  return (
+    value.includes("SEGUIMIENTO") ||
+    value.includes("FOLLOW")
+  );
+}
+
+export class TechnicalClosureService {
+  async createClosure(
+    data: CreateTechnicalClosureInput
+  ) {
     if (!data.reportId) {
-      throw new Error(
-        "El reporte es obligatorio."
-      );
+      throw new Error("El reporte es obligatorio.");
     }
 
     if (!data.technicianId) {
-      throw new Error(
-        "El técnico es obligatorio."
-      );
+      throw new Error("El técnico es obligatorio.");
     }
 
-    if (!data.result) {
+    if (!data.observations?.trim()) {
+      throw new Error("Las observaciones de cierre son obligatorias.");
+    }
+
+    let result =
+      data.result?.trim();
+
+    let followUpRequired =
+      false;
+
+    if (data.closureReasonId) {
+      const closureReason =
+        await technicalClosureRepository
+          .findClosureReasonById(
+            data.closureReasonId
+          );
+
+      if (!closureReason) {
+        throw new Error(
+          "El motivo de cierre seleccionado no existe."
+        );
+      }
+
+      if (!closureReason.active) {
+        throw new Error(
+          "El motivo de cierre seleccionado está inactivo."
+        );
+      }
+
+      result =
+        closureReason.name;
+
+      followUpRequired =
+        isFollowUpReason(
+          closureReason.name
+        );
+    }
+
+    if (!result) {
       throw new Error(
         "El resultado técnico es obligatorio."
       );
     }
-
-    if (!data.observations?.trim()) {
-      throw new Error(
-        "Las observaciones de cierre son obligatorias."
-      );
-    }
-
-    const report =
-      await technicalClosureRepository
-        .findReportById(data.reportId);
-
-    if (!report) {
-      throw new Error(
-        "Reporte no encontrado."
-      );
-    }
-
-    if (report.status !== Status.IN_PROGRESS) {
-      throw new Error(
-        "Solo se puede cerrar un reporte que está en atención."
-      );
-    }
-
-    const activeAssignment =
-      report.assignments.find(
-        (assignment) =>
-          assignment.active &&
-          assignment.technicianId ===
-            data.technicianId
-      );
-
-    if (!activeAssignment) {
-      throw new Error(
-        "Este reporte no está asignado al técnico actual."
-      );
-    }
-
-    if (!report.fieldWork) {
-      throw new Error(
-        "Primero debes registrar la trazabilidad del trabajo de campo."
-      );
-    }
-
-    if (!report.fieldWork.closedAt) {
-      throw new Error(
-        "Primero debes cerrar el registro de trabajo de campo."
-      );
-    }
-
-    const hasBefore =
-      report.fieldWork.evidences.some(
-        (evidence) =>
-          evidence.phase === "BEFORE"
-      );
-
-    const hasAfter =
-      report.fieldWork.evidences.some(
-        (evidence) =>
-          evidence.phase === "AFTER"
-      );
-
-    if (!hasBefore || !hasAfter) {
-      throw new Error(
-        "Debes registrar evidencias antes y después antes del cierre operativo."
-      );
-    }
-
-    if (
-      !report.technicalAttentions ||
-      report.technicalAttentions.length === 0
-    ) {
-      throw new Error(
-        "Primero debes registrar la atención técnica del reporte."
-      );
-    }
-
-    const followUpRequired =
-      data.result ===
-      TechnicalClosureResult.FOLLOW_UP_REQUIRED;
 
     if (
       followUpRequired &&
       !data.followUpNotes?.trim()
     ) {
       throw new Error(
-        "Debes indicar las notas de seguimiento requerido."
+        "Debes registrar las notas de seguimiento."
       );
     }
 
@@ -140,8 +103,10 @@ export class TechnicalClosureService {
         technicianId:
           data.technicianId,
 
-        result:
-          data.result,
+        result,
+
+        closureReasonId:
+          data.closureReasonId,
 
         observations:
           data.observations.trim(),
@@ -152,7 +117,15 @@ export class TechnicalClosureService {
         followUpRequired,
 
         followUpNotes:
-          data.followUpNotes?.trim(),
+          data.followUpNotes?.trim() ||
+          undefined,
       });
+  }
+
+  async getByReportId(
+    reportId: string
+  ) {
+    return await technicalClosureRepository
+      .findByReportId(reportId);
   }
 }

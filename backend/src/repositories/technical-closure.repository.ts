@@ -1,155 +1,83 @@
 import {
   Status,
-  TechnicalClosureResult,
 } from "@prisma/client";
 
 import {
   prisma,
 } from "../config/prisma";
 
+type CreateTechnicalClosureInput = {
+  reportId: string;
+  technicianId: string;
+  result: string;
+  closureReasonId?: string;
+  observations: string;
+  closureEvidenceUrl?: string;
+  followUpRequired?: boolean;
+  followUpNotes?: string;
+};
+
 export class TechnicalClosureRepository {
-  async findReportById(
-    reportId: string
+  async findClosureReasonById(
+    closureReasonId: string
   ) {
-    return await prisma.report.findUnique({
+    return await prisma.closureReason.findUnique({
       where: {
-        id: reportId,
-      },
-
-      include: {
-        fieldWork: {
-          include: {
-            evidences: true,
-          },
-        },
-
-        technicalAttentions: {
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-
-        assignments: true,
-
-        technicalClosure: true,
+        id: closureReasonId,
       },
     });
   }
 
-  async findByReport(
-    reportId: string
+  async create(
+    data: CreateTechnicalClosureInput
   ) {
-    return await prisma.technicalClosure.findUnique({
-      where: {
-        reportId,
-      },
+    return await prisma.$transaction(async (tx) => {
+      const closure =
+        await tx.technicalClosure.create({
+          data: {
+            reportId:
+              data.reportId,
 
-      include: {
-        technician: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
+            technicianId:
+              data.technicianId,
+
+            result:
+              data.result,
+
+            closureReasonId:
+              data.closureReasonId,
+
+            observations:
+              data.observations,
+
+            closureEvidenceUrl:
+              data.closureEvidenceUrl,
+
+            followUpRequired:
+              data.followUpRequired ?? false,
+
+            followUpNotes:
+              data.followUpNotes,
           },
-        },
 
-        report: {
           include: {
-            evidences: true,
-            municipality: true,
-            fieldWork: {
-              include: {
-                evidences: true,
+            closureReason: true,
+
+            technician: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
               },
             },
-            technicalAttentions: true,
           },
-        },
-      },
-    });
-  }
+        });
 
-  async create(data: {
-    reportId: string;
-    technicianId: string;
-    result: TechnicalClosureResult;
-    observations: string;
-    closureEvidenceUrl?: string;
-    followUpRequired: boolean;
-    followUpNotes?: string;
-  }) {
-    return await prisma.$transaction(
-      async (tx) => {
-        const closure =
-          await tx.technicalClosure.upsert({
-            where: {
-              reportId:
-                data.reportId,
-            },
-
-            update: {
-              technicianId:
-                data.technicianId,
-
-              result:
-                data.result,
-
-              observations:
-                data.observations,
-
-              closureEvidenceUrl:
-                data.closureEvidenceUrl,
-
-              followUpRequired:
-                data.followUpRequired,
-
-              followUpNotes:
-                data.followUpNotes,
-
-              closedAt:
-                new Date(),
-            },
-
-            create: {
-              reportId:
-                data.reportId,
-
-              technicianId:
-                data.technicianId,
-
-              result:
-                data.result,
-
-              observations:
-                data.observations,
-
-              closureEvidenceUrl:
-                data.closureEvidenceUrl,
-
-              followUpRequired:
-                data.followUpRequired,
-
-              followUpNotes:
-                data.followUpNotes,
-            },
-
-            include: {
-              technician: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  email: true,
-                },
-              },
-            },
-          });
-
+      const resolvedReport =
         await tx.report.update({
           where: {
-            id:
-              data.reportId,
+            id: data.reportId,
           },
 
           data: {
@@ -161,8 +89,65 @@ export class TechnicalClosureRepository {
           },
         });
 
-        return closure;
-      }
-    );
+      const followers =
+        await tx.reportFollow.findMany({
+          where: {
+            reportId:
+              resolvedReport.id,
+          },
+        });
+
+      const userIdsToNotify =
+        Array.from(
+          new Set([
+            resolvedReport.userId,
+            ...followers.map(
+              (follow) =>
+                follow.userId
+            ),
+          ])
+        );
+
+      await tx.notification.createMany({
+        data:
+          userIdsToNotify.map((userId) => ({
+            userId,
+
+            reportId:
+              resolvedReport.id,
+
+            title:
+              "Reporte resuelto",
+
+            message:
+              `El reporte "${resolvedReport.title}" fue marcado como resuelto por el técnico.`,
+          })),
+      });
+
+      return closure;
+    });
+  }
+
+  async findByReportId(
+    reportId: string
+  ) {
+    return await prisma.technicalClosure.findUnique({
+      where: {
+        reportId,
+      },
+
+      include: {
+        closureReason: true,
+
+        technician: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    });
   }
 }

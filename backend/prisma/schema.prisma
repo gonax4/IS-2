@@ -186,6 +186,8 @@ model ClosureReason {
   description String?
   active      Boolean @default(true)
 
+  technicalClosures TechnicalClosure[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -272,8 +274,14 @@ model TechnicianApplication {
 
   municipalityId String?
   municipality   Municipality? @relation(fields: [municipalityId], references: [id])
-  skills         String[]
-  experience     String?
+
+  skills     String[]
+  experience String?
+
+  emailVerified Boolean @default(false)
+
+  emailVerificationToken   String?
+  emailVerificationExpires DateTime?
 
   status TechnicianApplicationStatus @default(PENDING)
 
@@ -416,7 +424,10 @@ model TechnicalClosure {
   technicianId String
   technician   User   @relation(fields: [technicianId], references: [id])
 
-  result TechnicalClosureResult
+  result String
+
+  closureReasonId String?
+  closureReason   ClosureReason? @relation(fields: [closureReasonId], references: [id])
 
   observations String
 
@@ -431,4 +442,5 @@ model TechnicalClosure {
   updatedAt DateTime @updatedAt
 
   @@index([technicianId])
+  @@index([closureReasonId])
 }

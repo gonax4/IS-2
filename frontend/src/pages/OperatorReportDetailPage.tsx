@@ -219,6 +219,21 @@ export default function OperatorReportDetailPage() {
             return;
         }
 
+        const selectedDate =
+            new Date(`${targetDate}T00:00:00`);
+
+        const todayDate =
+            new Date();
+
+        todayDate.setHours(0, 0, 0, 0);
+
+        if (selectedDate < todayDate) {
+            alert(
+                "La fecha objetivo no puede ser una fecha pasada."
+            );
+            return;
+        }
+
         setSubmitting(true);
 
         try {
@@ -328,6 +343,11 @@ export default function OperatorReportDetailPage() {
     const canAssign =
         report.status === "PRIORITIZED" ||
         report.status === "ASSIGNED";
+    
+        const today =
+    new Date()
+        .toISOString()
+        .split("T")[0];
 
     return (
         <div className="
@@ -876,6 +896,7 @@ export default function OperatorReportDetailPage() {
 
                                     <input
                                         type="date"
+                                        min={today}
                                         value={targetDate}
                                         onChange={(event) =>
                                             setTargetDate(

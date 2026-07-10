@@ -388,18 +388,58 @@ export class ReportService {
       );
     }
 
-    if (
-      report.status !== Status.APPROVED &&
-      report.status !== Status.PRIORITIZED
-    ) {
-      throw new Error(
-        "Solo se pueden priorizar reportes aprobados."
-      );
-    }
+  if (
+    report.status !== Status.APPROVED &&
+    report.status !== Status.PRIORITIZED
+  ) {
+    throw new Error(
+      "Solo se pueden priorizar reportes aprobados."
+    );
+  }
 
-    let computedPriority:
-      Priority =
-      Priority.BAJO;
+  if (!data.targetDate) {
+    throw new Error(
+      "La fecha objetivo es obligatoria."
+    );
+  }
+
+  const targetDate =
+    new Date(`${data.targetDate}T00:00:00`);
+
+  const today =
+    new Date();
+
+  today.setHours(0, 0, 0, 0);
+
+  if (
+    Number.isNaN(targetDate.getTime())
+  ) {
+    throw new Error(
+      "La fecha objetivo no es válida."
+    );
+  }
+
+  if (targetDate < today) {
+    throw new Error(
+      "La fecha objetivo no puede ser una fecha pasada."
+    );
+  }
+
+  if (!data.operationalType?.trim()) {
+    throw new Error(
+      "El tipo operativo es obligatorio."
+    );
+  }
+
+  if (!data.justification?.trim()) {
+    throw new Error(
+      "La justificación es obligatoria."
+    );
+  }
+
+  let computedPriority:
+    Priority =
+    Priority.BAJO;
 
     if (
       (data.impact === "ALTO" && data.probability === "ALTO") ||
@@ -433,13 +473,12 @@ export class ReportService {
             computedPriority,
 
           operationalType:
-            data.operationalType,
+            data.operationalType.trim(),
 
-          targetDate:
-            new Date(data.targetDate),
+          targetDate,
 
           justification:
-            data.justification,
+            data.justification.trim(),
 
           status:
             Status.PRIORITIZED,

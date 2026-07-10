@@ -67,6 +67,8 @@ export const OperationalCatalogService = {
         ) as Category[];
     },
 
+    
+
     async createCategory(data: {
         name: string;
         description?: string;
@@ -348,5 +350,17 @@ export const OperationalCatalogService = {
             response,
             "No se pudieron cargar los tipos de problema activos."
         ) as ProblemType[];
+    },
+
+    async getActiveClosureReasons() {
+        const response =
+            await fetch(
+                `${API_BASE}/closure-reasons/active`
+            );
+
+        return await parseResponse(
+            response,
+            "No se pudieron cargar los motivos de cierre activos."
+        ) as ClosureReason[];
     },
 };
