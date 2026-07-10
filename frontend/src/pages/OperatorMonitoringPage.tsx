@@ -13,6 +13,12 @@ import {
 } from "../utils/reportLabels";
 
 import {
+    formatTargetDate,
+    getPriorityLabel,
+    getSlaViewState,
+} from "../utils/sla.utils";
+
+import {
     OperatorMonitoringService,
 } from "../services/operatorMonitoring.service";
 
@@ -93,6 +99,16 @@ function getPriorityClass(
     }
 
     return "bg-gray-100 text-gray-600";
+}
+
+function getWorkSlaState(
+    targetDate?: string | null,
+    status?: string
+) {
+    return getSlaViewState(
+        targetDate,
+        status
+    );
 }
 
 export default function OperatorMonitoringPage() {
@@ -240,6 +256,14 @@ export default function OperatorMonitoringPage() {
             return selectedWork || works[0] || null;
         }, [selectedWork, works]);
 
+    const visibleWorkSlaState =
+        visibleWork
+            ? getWorkSlaState(
+                visibleWork.targetDate,
+                visibleWork.status
+            )
+            : null;
+
     const beforeEvidences =
         visibleWork?.fieldWork?.evidences
             ?.filter((evidence) =>
@@ -311,7 +335,7 @@ export default function OperatorMonitoringPage() {
                             mt-3
                             text-lg
                         ">
-                            Supervisa trabajos asignados, estados, evidencias, tiempos y resultados técnicos.
+                            Supervisa trabajos asignados, estados, evidencias, tiempos, SLA y resultados técnicos.
                         </p>
                     </div>
 
@@ -619,18 +643,27 @@ export default function OperatorMonitoringPage() {
                                             <th className="py-3 pr-4">
                                                 Reporte
                                             </th>
+
                                             <th className="py-3 pr-4">
                                                 Técnico
                                             </th>
+
                                             <th className="py-3 pr-4">
                                                 Estado
                                             </th>
+
                                             <th className="py-3 pr-4">
                                                 Prioridad
                                             </th>
+
+                                            <th className="py-3 pr-4">
+                                                SLA
+                                            </th>
+
                                             <th className="py-3 pr-4">
                                                 Tiempos
                                             </th>
+
                                             <th className="py-3 pr-4">
                                                 Acción
                                             </th>
@@ -638,127 +671,160 @@ export default function OperatorMonitoringPage() {
                                     </thead>
 
                                     <tbody>
-                                        {works.map((work) => (
-                                            <tr
-                                                key={work.assignmentId}
-                                                className="
-                                                    border-b
-                                                    align-top
-                                                    hover:bg-gray-50
-                                                "
-                                            >
-                                                <td className="py-4 pr-4">
-                                                    <p className="
-                                                        font-bold
-                                                        text-[#03152E]
-                                                    ">
-                                                        {work.title}
-                                                    </p>
+                                        {works.map((work) => {
+                                            const slaState =
+                                                getWorkSlaState(
+                                                    work.targetDate,
+                                                    work.status
+                                                );
 
-                                                    <p className="
-                                                        text-sm
-                                                        text-gray-500
-                                                    ">
-                                                        {work.problemType}
-                                                    </p>
-
-                                                    <p className="
-                                                        text-xs
-                                                        text-gray-400
-                                                        mt-1
-                                                    ">
-                                                        Asignado: {formatDateTime(work.assignedAt)}
-                                                    </p>
-                                                </td>
-
-                                                <td className="py-4 pr-4">
-                                                    <p className="font-semibold">
-                                                        {work.technician.firstName} {work.technician.lastName}
-                                                    </p>
-
-                                                    <p className="
-                                                        text-sm
-                                                        text-gray-500
-                                                    ">
-                                                        {work.technician.email}
-                                                    </p>
-                                                </td>
-
-                                                <td className="py-4 pr-4">
-                                                    <span className="
-                                                        inline-block
-                                                        bg-blue-100
-                                                        text-blue-700
-                                                        rounded-full
-                                                        px-3
-                                                        py-1
-                                                        text-sm
-                                                        font-bold
-                                                    ">
-                                                        {
-                                                            statusLabels[work.status] ||
-                                                            work.status
-                                                        }
-                                                    </span>
-                                                </td>
-
-                                                <td className="py-4 pr-4">
-                                                    <span className={`
-                                                        inline-block
-                                                        rounded-full
-                                                        px-3
-                                                        py-1
-                                                        text-sm
-                                                        font-bold
-                                                        ${getPriorityClass(work.priority)}
-                                                    `}>
-                                                        {work.priority || "No definida"}
-                                                    </span>
-                                                </td>
-
-                                                <td className="
-                                                    py-4
-                                                    pr-4
-                                                    text-sm
-                                                    text-gray-600
-                                                    space-y-1
-                                                ">
-                                                    <p>
-                                                        Asig. → llegada:{" "}
-                                                        {formatMinutes(work.times.assignedToArrivalMinutes)}
-                                                    </p>
-
-                                                    <p>
-                                                        Llegada → cierre visita:{" "}
-                                                        {formatMinutes(work.times.arrivalToFieldCloseMinutes)}
-                                                    </p>
-
-                                                    <p>
-                                                        Asig. → resolución:{" "}
-                                                        {formatMinutes(work.times.assignedToResolutionMinutes)}
-                                                    </p>
-                                                </td>
-
-                                                <td className="py-4 pr-4">
-                                                    <button
-                                                        onClick={() =>
-                                                            setSelectedWork(work)
-                                                        }
-                                                        className="
-                                                            bg-[#03152E]
-                                                            text-white
-                                                            rounded-xl
-                                                            px-4
-                                                            py-2
+                                            return (
+                                                <tr
+                                                    key={work.assignmentId}
+                                                    className="
+                                                        border-b
+                                                        align-top
+                                                        hover:bg-gray-50
+                                                    "
+                                                >
+                                                    <td className="py-4 pr-4">
+                                                        <p className="
                                                             font-bold
-                                                            hover:bg-black
-                                                        "
-                                                    >
-                                                        Ver monitoreo
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                                            text-[#03152E]
+                                                        ">
+                                                            {work.title}
+                                                        </p>
+
+                                                        <p className="
+                                                            text-sm
+                                                            text-gray-500
+                                                        ">
+                                                            {work.problemType}
+                                                        </p>
+
+                                                        <p className="
+                                                            text-xs
+                                                            text-gray-400
+                                                            mt-1
+                                                        ">
+                                                            Asignado: {formatDateTime(work.assignedAt)}
+                                                        </p>
+                                                    </td>
+
+                                                    <td className="py-4 pr-4">
+                                                        <p className="font-semibold">
+                                                            {work.technician.firstName} {work.technician.lastName}
+                                                        </p>
+
+                                                        <p className="
+                                                            text-sm
+                                                            text-gray-500
+                                                        ">
+                                                            {work.technician.email}
+                                                        </p>
+                                                    </td>
+
+                                                    <td className="py-4 pr-4">
+                                                        <span className="
+                                                            inline-block
+                                                            bg-blue-100
+                                                            text-blue-700
+                                                            rounded-full
+                                                            px-3
+                                                            py-1
+                                                            text-sm
+                                                            font-bold
+                                                        ">
+                                                            {
+                                                                statusLabels[work.status] ||
+                                                                work.status
+                                                            }
+                                                        </span>
+                                                    </td>
+
+                                                    <td className="py-4 pr-4">
+                                                        <span className={`
+                                                            inline-block
+                                                            rounded-full
+                                                            px-3
+                                                            py-1
+                                                            text-sm
+                                                            font-bold
+                                                            ${getPriorityClass(work.priority)}
+                                                        `}>
+                                                            {getPriorityLabel(work.priority)}
+                                                        </span>
+                                                    </td>
+
+                                                    <td className="
+                                                        py-4
+                                                        pr-4
+                                                        text-sm
+                                                        text-gray-600
+                                                        space-y-2
+                                                    ">
+                                                        <span className={`
+                                                            inline-block
+                                                            rounded-full
+                                                            px-3
+                                                            py-1
+                                                            text-xs
+                                                            font-bold
+                                                            ${slaState.className}
+                                                        `}>
+                                                            {slaState.label}
+                                                        </span>
+
+                                                        <p>
+                                                            <strong>Objetivo:</strong>{" "}
+                                                            {formatTargetDate(work.targetDate)}
+                                                        </p>
+                                                    </td>
+
+                                                    <td className="
+                                                        py-4
+                                                        pr-4
+                                                        text-sm
+                                                        text-gray-600
+                                                        space-y-1
+                                                    ">
+                                                        <p>
+                                                            Asig. → llegada:{" "}
+                                                            {formatMinutes(work.times.assignedToArrivalMinutes)}
+                                                        </p>
+
+                                                        <p>
+                                                            Llegada → cierre visita:{" "}
+                                                            {formatMinutes(work.times.arrivalToFieldCloseMinutes)}
+                                                        </p>
+
+                                                        <p>
+                                                            Asig. → resolución:{" "}
+                                                            {formatMinutes(work.times.assignedToResolutionMinutes)}
+                                                        </p>
+                                                    </td>
+
+                                                    <td className="py-4 pr-4">
+                                                        <button
+                                                            onClick={() =>
+                                                                setSelectedWork(work)
+                                                            }
+                                                            className="
+                                                                bg-[#03152E]
+                                                                text-white
+                                                                rounded-xl
+                                                                px-4
+                                                                py-2
+                                                                font-bold
+                                                                hover:bg-black
+                                                            "
+                                                        >
+                                                            Ver monitoreo
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
@@ -812,6 +878,47 @@ export default function OperatorMonitoringPage() {
                                             visibleWork.status
                                         }
                                     </p>
+
+                                    <p>
+                                        <strong>Prioridad:</strong>{" "}
+                                        {getPriorityLabel(visibleWork.priority)}
+                                    </p>
+
+                                    <p>
+                                        <strong>Fecha objetivo:</strong>{" "}
+                                        {formatTargetDate(visibleWork.targetDate)}
+                                    </p>
+
+                                    {visibleWorkSlaState && (
+                                        <div className="
+                                            flex
+                                            items-center
+                                            gap-2
+                                            flex-wrap
+                                        ">
+                                            <strong>SLA:</strong>
+
+                                            <span className={`
+                                                px-3
+                                                py-1
+                                                rounded-full
+                                                text-xs
+                                                font-bold
+                                                ${visibleWorkSlaState.className}
+                                            `}>
+                                                {visibleWorkSlaState.label}
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    {visibleWorkSlaState && (
+                                        <p className="
+                                            text-sm
+                                            text-blue-700
+                                        ">
+                                            {visibleWorkSlaState.description}
+                                        </p>
+                                    )}
 
                                     <p>
                                         <strong>Técnico:</strong>{" "}

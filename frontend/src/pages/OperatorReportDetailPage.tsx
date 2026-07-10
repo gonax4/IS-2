@@ -15,6 +15,12 @@ import {
 import AssignmentSection
     from "../components/assignment/AssignmentSection";
 
+import {
+    formatTargetDate,
+    getPriorityLabel,
+    getSlaViewState,
+} from "../utils/sla.utils";
+
 const API_URL =
     import.meta.env.VITE_API_URL ||
     "http://localhost:3000";
@@ -90,9 +96,6 @@ export default function OperatorReportDetailPage() {
     const [operationalType, setOperationalType] =
         useState("");
 
-    const [targetDate, setTargetDate] =
-        useState("");
-
     const [justification, setJustification] =
         useState("");
 
@@ -133,12 +136,6 @@ export default function OperatorReportDetailPage() {
             setOperationalType(
                 data.operationalType ||
                 ""
-            );
-
-            setTargetDate(
-                data.targetDate
-                    ? data.targetDate.slice(0, 10)
-                    : ""
             );
 
             setJustification(
@@ -210,26 +207,10 @@ export default function OperatorReportDetailPage() {
 
         if (
             !operationalType ||
-            !targetDate ||
             !justification
         ) {
             alert(
                 "Por favor, completa todos los campos de priorización."
-            );
-            return;
-        }
-
-        const selectedDate =
-            new Date(`${targetDate}T00:00:00`);
-
-        const todayDate =
-            new Date();
-
-        todayDate.setHours(0, 0, 0, 0);
-
-        if (selectedDate < todayDate) {
-            alert(
-                "La fecha objetivo no puede ser una fecha pasada."
             );
             return;
         }
@@ -245,11 +226,10 @@ export default function OperatorReportDetailPage() {
                         headers: {
                             "Content-Type": "application/json",
                         },
-                        body: JSON.stringify({
+                            body: JSON.stringify({
                             impact,
                             probability,
                             operationalType,
-                            targetDate,
                             justification,
                         }),
                     }
@@ -343,11 +323,11 @@ export default function OperatorReportDetailPage() {
     const canAssign =
         report.status === "PRIORITIZED" ||
         report.status === "ASSIGNED";
-    
-        const today =
-    new Date()
-        .toISOString()
-        .split("T")[0];
+    const slaState =
+        getSlaViewState(
+            report.targetDate,
+            report.status
+        );
 
     return (
         <div className="
@@ -474,7 +454,7 @@ export default function OperatorReportDetailPage() {
                                         border
                                         ${priorityClass(report.priority)}
                                     `}>
-                                        Prioridad: {report.priority}
+                                        Prioridad: {getPriorityLabel(report.priority)}
                                     </span>
                                 )}
                             </div>
@@ -855,6 +835,30 @@ export default function OperatorReportDetailPage() {
                                     </select>
                                 </div>
 
+                                <div className="
+                                    bg-blue-50
+                                    border
+                                    border-blue-100
+                                    rounded-2xl
+                                    p-4
+                                ">
+                                    <p className="
+                                        text-sm
+                                        font-bold
+                                        text-blue-800
+                                    ">
+                                        SLA automático
+                                    </p>
+
+                                    <p className="
+                                        text-sm
+                                        text-blue-700
+                                        mt-1
+                                    ">
+                                        La fecha objetivo se calculará automáticamente según la prioridad resultante de impacto y probabilidad.
+                                    </p>
+                                </div>
+
                                 <div>
                                     <label className="
                                         block
@@ -880,35 +884,6 @@ export default function OperatorReportDetailPage() {
                                             p-3
                                         "
                                         placeholder="Ej. Limpieza, infraestructura, movilidad"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="
-                                        block
-                                        text-sm
-                                        font-semibold
-                                        text-gray-700
-                                        mb-1
-                                    ">
-                                        Fecha objetivo
-                                    </label>
-
-                                    <input
-                                        type="date"
-                                        min={today}
-                                        value={targetDate}
-                                        onChange={(event) =>
-                                            setTargetDate(
-                                                event.target.value
-                                            )
-                                        }
-                                        className="
-                                            w-full
-                                            border
-                                            rounded-xl
-                                            p-3
-                                        "
                                     />
                                 </div>
 
@@ -971,46 +946,69 @@ export default function OperatorReportDetailPage() {
                                 bg-gray-50
                                 rounded-2xl
                                 p-5
-                                space-y-3
+                                space-y-4
                                 border
                             ">
-                                <h3 className="
-                                    font-bold
-                                    text-lg
-                                    text-[#03152E]
+                                <div className="
+                                    flex
+                                    items-center
+                                    justify-between
+                                    gap-3
                                 ">
-                                    Datos de priorización
-                                </h3>
+                                    <h3 className="
+                                        font-bold
+                                        text-lg
+                                        text-[#03152E]
+                                    ">
+                                        SLA / Tiempo objetivo
+                                    </h3>
 
-                                <p>
-                                    <strong>Prioridad:</strong>{" "}
-                                    {report.priority}
-                                </p>
+                                    <span className={`
+                                        px-3
+                                        py-1
+                                        rounded-full
+                                        text-xs
+                                        font-bold
+                                        ${slaState.className}
+                                    `}>
+                                        {slaState.label}
+                                    </span>
+                                </div>
 
-                                {report.operationalType && (
+                                <div className="
+                                    space-y-2
+                                    text-sm
+                                    text-gray-700
+                                ">
                                     <p>
-                                        <strong>Tipo operativo:</strong>{" "}
-                                        {report.operationalType}
+                                        <strong>Prioridad:</strong>{" "}
+                                        {getPriorityLabel(report.priority)}
                                     </p>
-                                )}
 
-                                {report.targetDate && (
+                                    {report.operationalType && (
+                                        <p>
+                                            <strong>Tipo operativo:</strong>{" "}
+                                            {report.operationalType}
+                                        </p>
+                                    )}
+
                                     <p>
                                         <strong>Fecha objetivo:</strong>{" "}
-                                        {
-                                            new Date(
-                                                report.targetDate
-                                            ).toLocaleDateString()
-                                        }
+                                        {formatTargetDate(report.targetDate)}
                                     </p>
-                                )}
 
-                                {report.justification && (
                                     <p>
-                                        <strong>Justificación:</strong>{" "}
-                                        {report.justification}
+                                        <strong>Estado SLA:</strong>{" "}
+                                        {slaState.description}
                                     </p>
-                                )}
+
+                                    {report.justification && (
+                                        <p>
+                                            <strong>Justificación:</strong>{" "}
+                                            {report.justification}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         )}
 

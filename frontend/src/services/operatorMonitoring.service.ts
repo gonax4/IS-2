@@ -28,11 +28,15 @@ export type MonitoringTechnician = {
 export type MonitoringWork = {
     assignmentId: string;
     reportId: string;
+
     title: string;
     problemType: string;
     description: string;
     status: string;
+
     priority?: string | null;
+    targetDate?: string | null;
+
     address?: string | null;
     assignedAt: string;
     notes?: string | null;
@@ -49,7 +53,7 @@ export type MonitoringWork = {
         firstName: string;
         lastName: string;
         email: string;
-    };
+    } | null;
 
     reportEvidence?: {
         imageUrl: string;
@@ -103,6 +107,24 @@ export type MonitoringFilters = {
     priority?: string;
 };
 
+async function parseResponse<T>(
+    response: Response,
+    fallbackMessage: string
+): Promise<T> {
+    const result =
+        await response.json()
+            .catch(() => null);
+
+    if (!response.ok) {
+        throw new Error(
+            result?.message ||
+            fallbackMessage
+        );
+    }
+
+    return result as T;
+}
+
 export const OperatorMonitoringService = {
     async getTechnicians(
         operatorId: string
@@ -112,18 +134,10 @@ export const OperatorMonitoringService = {
                 `${API_BASE}/operator-monitoring/${operatorId}/technicians`
             );
 
-        const result =
-            await response.json()
-                .catch(() => null);
-
-        if (!response.ok) {
-            throw new Error(
-                result?.message ||
-                "No se pudieron cargar los técnicos."
-            );
-        }
-
-        return result as MonitoringTechnician[];
+        return await parseResponse<MonitoringTechnician[]>(
+            response,
+            "No se pudieron cargar los técnicos."
+        );
     },
 
     async getWorks(
@@ -162,18 +176,10 @@ export const OperatorMonitoringService = {
                 `${API_BASE}/operator-monitoring/${operatorId}/works${query ? `?${query}` : ""}`
             );
 
-        const result =
-            await response.json()
-                .catch(() => null);
-
-        if (!response.ok) {
-            throw new Error(
-                result?.message ||
-                "No se pudieron cargar los trabajos."
-            );
-        }
-
-        return result as MonitoringWork[];
+        return await parseResponse<MonitoringWork[]>(
+            response,
+            "No se pudieron cargar los trabajos."
+        );
     },
 
     async getMetrics(
@@ -184,17 +190,9 @@ export const OperatorMonitoringService = {
                 `${API_BASE}/operator-monitoring/${operatorId}/metrics`
             );
 
-        const result =
-            await response.json()
-                .catch(() => null);
-
-        if (!response.ok) {
-            throw new Error(
-                result?.message ||
-                "No se pudieron cargar las métricas."
-            );
-        }
-
-        return result as MonitoringMetrics;
+        return await parseResponse<MonitoringMetrics>(
+            response,
+            "No se pudieron cargar las métricas."
+        );
     },
 };

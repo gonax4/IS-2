@@ -189,6 +189,9 @@ export class OperatorMonitoringService {
         priority:
           report.priority,
 
+        targetDate:
+          report.targetDate,
+
         address:
           report.address,
 

@@ -16,6 +16,12 @@ import {
     statusLabels,
 } from "../utils/reportLabels";
 
+import {
+    formatTargetDate,
+    getPriorityLabel,
+    getSlaViewState,
+} from "../utils/sla.utils";
+
 type Assignment = {
     id: string;
     reportId: string;
@@ -31,6 +37,7 @@ type Assignment = {
         description: string;
         status: string;
         priority?: string;
+        targetDate?: string | null;
         address?: string;
         createdAt: string;
         evidences?: {
@@ -296,6 +303,12 @@ export default function TechnicianDashboardPage() {
                                 report.evidences?.[0]?.imageUrl ||
                                 "https://placehold.co/600x400?text=Sin+evidencia";
 
+                            const slaState =
+                                getSlaViewState(
+                                    report.targetDate,
+                                    report.status
+                                );
+
                             return (
                                 <div
                                     key={assignment.id}
@@ -369,7 +382,8 @@ export default function TechnicianDashboardPage() {
                                             mt-5
                                             grid
                                             grid-cols-1
-                                            md:grid-cols-3
+                                            md:grid-cols-2
+                                            xl:grid-cols-4
                                             gap-4
                                             text-sm
                                             text-gray-600
@@ -381,13 +395,44 @@ export default function TechnicianDashboardPage() {
 
                                             <p>
                                                 <strong>Prioridad:</strong>{" "}
-                                                {report.priority || "No definida"}
+                                                {getPriorityLabel(report.priority)}
+                                            </p>
+
+                                            <p>
+                                                <strong>Fecha objetivo:</strong>{" "}
+                                                {formatTargetDate(report.targetDate)}
                                             </p>
 
                                             <p>
                                                 <strong>Asignado:</strong>{" "}
                                                 {new Date(assignment.assignedAt).toLocaleDateString()}
                                             </p>
+                                        </div>
+
+                                        <div className="
+                                            mt-4
+                                            flex
+                                            items-center
+                                            gap-3
+                                            flex-wrap
+                                        ">
+                                            <span className={`
+                                                px-3
+                                                py-1
+                                                rounded-full
+                                                text-xs
+                                                font-bold
+                                                ${slaState.className}
+                                            `}>
+                                                {slaState.label}
+                                            </span>
+
+                                            <span className="
+                                                text-sm
+                                                text-gray-500
+                                            ">
+                                                {slaState.description}
+                                            </span>
                                         </div>
 
                                         {assignment.notes && (

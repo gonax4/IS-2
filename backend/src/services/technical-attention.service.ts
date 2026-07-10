@@ -27,7 +27,7 @@ export class TechnicalAttentionService {
     }
 
     if (!data.actionTaken) {
-      throw new Error("La acción realizada es obligatoria.");
+      throw new Error("La acción o situación registrada es obligatoria.");
     }
 
     if (!data.technicalResult) {
@@ -44,18 +44,6 @@ export class TechnicalAttentionService {
     if (report.status !== Status.IN_PROGRESS) {
       throw new Error(
         "Solo se puede atender un reporte que está en atención."
-      );
-    }
-
-    const checklistValues =
-      Object.values(data.checklist || {});
-
-    if (
-      checklistValues.length === 0 ||
-      checklistValues.some((value) => value !== true)
-    ) {
-      throw new Error(
-        "Debe completar todos los pasos del checklist."
       );
     }
 

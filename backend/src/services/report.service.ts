@@ -10,6 +10,10 @@ import {
   Priority,
 } from "@prisma/client";
 
+import {
+  prisma,
+} from "../config/prisma";
+
 import { GeocodingService }
   from "./geocoding.service";
 
@@ -64,6 +68,31 @@ export class ReportService {
 
     return labels[status];
   }
+
+    private async calculateTargetDateByPriority(
+      priority: Priority
+    ) {
+      const slaConfiguration =
+        await prisma.slaConfiguration.findUnique({
+          where: {
+            priority,
+          },
+        });
+
+      if (!slaConfiguration) {
+        return null;
+      }
+
+      const targetDate =
+        new Date();
+
+      targetDate.setHours(
+        targetDate.getHours() +
+        slaConfiguration.responseHours
+      );
+
+      return targetDate;
+    }
 
   async createReport(data: {
 
@@ -370,11 +399,11 @@ export class ReportService {
     return report;
   }
 
-  async prioritizeReport(id: string, data: {
+    async prioritizeReport(id: string, data: {
     impact: "BAJO" | "MEDIO" | "ALTO";
     probability: "BAJO" | "MEDIO" | "ALTO";
     operationalType: string;
-    targetDate: string;
+    targetDate?: string;
     justification: string;
   }) {
     const report =
@@ -388,58 +417,30 @@ export class ReportService {
       );
     }
 
-  if (
-    report.status !== Status.APPROVED &&
-    report.status !== Status.PRIORITIZED
-  ) {
-    throw new Error(
-      "Solo se pueden priorizar reportes aprobados."
-    );
-  }
+    if (
+      report.status !== Status.APPROVED &&
+      report.status !== Status.PRIORITIZED
+    ) {
+      throw new Error(
+        "Solo se pueden priorizar reportes aprobados."
+      );
+    }
 
-  if (!data.targetDate) {
-    throw new Error(
-      "La fecha objetivo es obligatoria."
-    );
-  }
+    if (!data.operationalType?.trim()) {
+      throw new Error(
+        "El tipo operativo es obligatorio."
+      );
+    }
 
-  const targetDate =
-    new Date(`${data.targetDate}T00:00:00`);
+    if (!data.justification?.trim()) {
+      throw new Error(
+        "La justificación es obligatoria."
+      );
+    }
 
-  const today =
-    new Date();
-
-  today.setHours(0, 0, 0, 0);
-
-  if (
-    Number.isNaN(targetDate.getTime())
-  ) {
-    throw new Error(
-      "La fecha objetivo no es válida."
-    );
-  }
-
-  if (targetDate < today) {
-    throw new Error(
-      "La fecha objetivo no puede ser una fecha pasada."
-    );
-  }
-
-  if (!data.operationalType?.trim()) {
-    throw new Error(
-      "El tipo operativo es obligatorio."
-    );
-  }
-
-  if (!data.justification?.trim()) {
-    throw new Error(
-      "La justificación es obligatoria."
-    );
-  }
-
-  let computedPriority:
-    Priority =
-    Priority.BAJO;
+    let computedPriority:
+      Priority =
+      Priority.BAJO;
 
     if (
       (data.impact === "ALTO" && data.probability === "ALTO") ||
@@ -457,6 +458,36 @@ export class ReportService {
     ) {
       computedPriority =
         Priority.MEDIO;
+    }
+
+    let targetDate =
+      await this
+        .calculateTargetDateByPriority(
+          computedPriority
+        );
+
+    if (!targetDate && data.targetDate) {
+      const manualTargetDate =
+        new Date(`${data.targetDate}T00:00:00`);
+
+      if (
+        Number.isNaN(
+          manualTargetDate.getTime()
+        )
+      ) {
+        throw new Error(
+          "La fecha objetivo no es válida."
+        );
+      }
+
+      targetDate =
+        manualTargetDate;
+    }
+
+    if (!targetDate) {
+      throw new Error(
+        `No existe una configuración SLA para la prioridad ${computedPriority}.`
+      );
     }
 
     const updatedReport =
@@ -517,7 +548,7 @@ export class ReportService {
               "Reporte priorizado",
 
             message:
-              `El reporte "${report.title || report.problemType}" fue priorizado como ${computedPriority}.`,
+              `El reporte "${report.title || report.problemType}" fue priorizado como ${computedPriority}. Fecha objetivo: ${targetDate.toLocaleDateString("es-PE")}.`,
           }))
       );
 

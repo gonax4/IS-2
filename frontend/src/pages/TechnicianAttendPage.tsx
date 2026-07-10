@@ -10,10 +10,6 @@ import {
 } from "react-router-dom";
 
 import {
-    TechnicalAttentionService,
-} from "../services/technicalAttention.service";
-
-import {
     statusLabels,
 } from "../utils/reportLabels";
 
@@ -21,1213 +17,639 @@ const API_URL =
     import.meta.env.VITE_API_URL ||
     "http://localhost:3000";
 
-type FieldType =
-    "text" |
-    "number" |
-    "select" |
-    "textarea";
-
-type TemplateField = {
-    name: string;
-    label: string;
-    placeholder?: string;
-    type?: FieldType;
-    options?: string[];
-};
-
-type AttentionTemplate = {
-    title: string;
-    description: string;
-    categoryLabel: string;
-    checklist: string[];
-    fields: TemplateField[];
-    actions: string[];
-    results: string[];
-};
-
 type Report = {
     id: string;
-    title: string;
+    title?: string;
+    category: string;
     problemType: string;
     description: string;
     status: string;
     address?: string;
-    priority?: string;
-    latitude?: number;
-    longitude?: number;
-    municipality?: {
-        id: string;
-        name: string;
-        district?: string | null;
-        province?: string | null;
-        department?: string | null;
-    } | null;
+    createdAt: string;
     evidences?: {
         imageUrl: string;
     }[];
 };
 
-const defaultTemplate: AttentionTemplate = {
-    title: "Atención técnica general",
-    description:
-        "Registra la atención realizada en campo cuando el problema no tiene una plantilla específica.",
-    categoryLabel: "General",
-    checklist: [
-        "Verificar el estado actual del problema",
-        "Registrar evidencia del área afectada",
-        "Aplicar medida técnica correspondiente",
-        "Confirmar si el caso requiere seguimiento",
-    ],
-    fields: [
-        {
-            name: "descripcionTecnica",
-            label: "Descripción técnica",
-            type: "textarea",
-            placeholder: "Describe lo observado en campo.",
-        },
-        {
-            name: "nivelRiesgo",
-            label: "Nivel de riesgo",
-            type: "select",
-            options: [
-                "Bajo",
-                "Medio",
-                "Alto",
-            ],
-        },
-    ],
-    actions: [
-        "Atención realizada",
-        "Mitigación temporal",
-        "Derivar a otra área",
-    ],
-    results: [
-        "Atendido parcialmente",
-        "Atendido completamente",
-        "Requiere seguimiento",
-        "Requiere derivación",
-    ],
+type CampoConfig = {
+    label: string;
+    placeholder: string;
+    descripcion: string;
+    minLength?: number;
 };
 
-const templates: Record<string, AttentionTemplate> = {
-    robos_asaltos: {
-        title: "Atención por robos y asaltos",
-        description:
-            "Permite registrar verificación en campo, coordinación preventiva y derivación a seguridad ciudadana.",
-        categoryLabel: "Seguridad",
+type CatalogoAtencion = {
+    checklist: string[];
+    camposObligatorios: CampoConfig[];
+    acciones: string[];
+};
+
+const catalogoAtencion: Record<string, CatalogoAtencion> = {
+    "Robos y asaltos": {
         checklist: [
-            "Verificar el punto exacto del incidente",
-            "Identificar si existe riesgo activo para vecinos o peatones",
-            "Coordinar con serenazgo o seguridad ciudadana",
-            "Registrar evidencia del área y condiciones del entorno",
+            "Verificar zona de incidencia",
+            "Documentar frecuencia del problema",
+            "Notificar a unidad de seguridad",
         ],
-        fields: [
+        camposObligatorios: [
             {
-                name: "puntoCritico",
-                label: "Punto crítico identificado",
-                type: "text",
-                placeholder: "Ej. Esquina sin iluminación, paradero o parque.",
+                label: "Zona de riesgo",
+                placeholder: "Ej: Esquina de Av. Arequipa con Jr. Moquegua",
+                descripcion: "Indica la calle o cruce donde ocurren los incidentes.",
+                minLength: 10,
             },
             {
-                name: "nivelRiesgo",
-                label: "Nivel de riesgo observado",
-                type: "select",
-                options: [
-                    "Bajo",
-                    "Medio",
-                    "Alto",
-                ],
-            },
-            {
-                name: "personasAfectadas",
-                label: "Personas afectadas o testigos",
-                type: "text",
-                placeholder: "Ej. Vecinos, transeúntes, comerciantes.",
+                label: "Frecuencia reportada",
+                placeholder: "Ej: Todos los días entre 9pm y 12am",
+                descripcion: "Horario o días en que suele ocurrir.",
+                minLength: 10,
             },
         ],
-        actions: [
-            "Patrullaje preventivo",
-            "Derivar a serenazgo",
-            "Coordinar con PNP",
-            "Reforzar vigilancia en la zona",
-        ],
-        results: [
-            "Zona verificada",
-            "Caso derivado a seguridad ciudadana",
-            "Se requiere patrullaje recurrente",
-            "Riesgo mitigado temporalmente",
+        acciones: [
+            "Reparación — Coordinar con serenazgo",
+            "Mitigación — Instalar cámara de vigilancia",
+            "Derivación — Derivar a PNP",
         ],
     },
 
-    alcohol_via_publica: {
-        title: "Atención por consumo de alcohol en vía pública",
-        description:
-            "Registra acciones de control, verificación de convivencia vecinal y coordinación municipal.",
-        categoryLabel: "Seguridad",
+    "Consumo de alcohol en la vía pública": {
         checklist: [
-            "Verificar presencia de personas consumiendo alcohol",
-            "Evaluar afectación a vecinos o peatones",
-            "Registrar evidencia del punto de concentración",
-            "Coordinar intervención con fiscalización o serenazgo",
+            "Identificar personas involucradas",
+            "Verificar si hay menores de edad",
+            "Documentar hora y lugar exacto",
         ],
-        fields: [
+        camposObligatorios: [
             {
-                name: "cantidadPersonas",
-                label: "Cantidad aproximada de personas",
-                type: "number",
-                placeholder: "Ej. 5",
+                label: "Número de personas",
+                placeholder: "Ej: 4 personas en la vereda",
+                descripcion: "Cantidad aproximada de personas involucradas.",
+                minLength: 5,
             },
             {
-                name: "afectacion",
-                label: "Tipo de afectación",
-                type: "select",
-                options: [
-                    "Ruido",
-                    "Obstrucción de vía",
-                    "Riesgo para peatones",
-                    "Conducta agresiva",
-                    "Otra",
-                ],
-            },
-            {
-                name: "horarioIncidencia",
-                label: "Horario de mayor ocurrencia",
-                type: "text",
-                placeholder: "Ej. Noches, fines de semana.",
+                label: "Hora del incidente",
+                placeholder: "Ej: Aproximadamente 10:30pm",
+                descripcion: "Hora en que se encontró el problema.",
+                minLength: 5,
             },
         ],
-        actions: [
-            "Intervención preventiva",
-            "Derivar a fiscalización",
-            "Derivar a serenazgo",
-            "Registrar zona para seguimiento",
-        ],
-        results: [
-            "Personas retiradas",
-            "Caso derivado",
-            "Se requiere seguimiento nocturno",
-            "Situación mitigada",
+        acciones: [
+            "Reparación — Dispersar a las personas",
+            "Mitigación — Llamar a serenazgo",
+            "Derivación — Derivar a PNP",
         ],
     },
 
-    venta_ambulante: {
-        title: "Atención por venta ambulante no autorizada",
-        description:
-            "Registra evaluación de ocupación de vía pública y acciones de fiscalización.",
-        categoryLabel: "Seguridad / Fiscalización",
+    "Venta ambulante no autorizada": {
         checklist: [
-            "Verificar ocupación de espacio público",
-            "Identificar tipo de comercio informal",
-            "Evaluar obstrucción peatonal o vehicular",
-            "Registrar evidencia fotográfica",
+            "Identificar tipo de producto vendido",
+            "Verificar si obstruye el paso peatonal",
+            "Documentar ubicación exacta del puesto",
         ],
-        fields: [
+        camposObligatorios: [
             {
-                name: "tipoComercio",
                 label: "Tipo de comercio",
-                type: "text",
-                placeholder: "Ej. Alimentos, ropa, accesorios.",
+                placeholder: "Ej: Venta de comida en vereda frente al parque",
+                descripcion: "Describe qué se vende y cómo está instalado.",
+                minLength: 10,
             },
             {
-                name: "obstruccion",
                 label: "Nivel de obstrucción",
-                type: "select",
-                options: [
-                    "Bajo",
-                    "Medio",
-                    "Alto",
-                ],
-            },
-            {
-                name: "ubicacionExacta",
-                label: "Ubicación exacta",
-                type: "text",
-                placeholder: "Ej. Frente a mercado, esquina o paradero.",
+                placeholder: "Ej: Bloquea el 50% de la vereda",
+                descripcion: "Indica si impide el paso de peatones o vehículos.",
+                minLength: 10,
             },
         ],
-        actions: [
-            "Notificación preventiva",
-            "Derivar a fiscalización",
-            "Retiro de comercio informal",
-            "Programar nueva inspección",
-        ],
-        results: [
-            "Comercio retirado",
-            "Notificación emitida",
-            "Caso derivado a fiscalización",
-            "Requiere seguimiento",
+        acciones: [
+            "Reparación — Solicitar retiro del puesto",
+            "Mitigación — Notificar a fiscalización",
+            "Derivación — Derivar a municipio",
         ],
     },
 
-    personas_sospechosas: {
-        title: "Atención por personas sospechosas",
-        description:
-            "Permite registrar verificación del entorno y coordinación preventiva con seguridad ciudadana.",
-        categoryLabel: "Seguridad",
+    "Personas sospechosas": {
         checklist: [
-            "Verificar presencia reportada",
-            "Evaluar riesgo inmediato",
-            "Registrar descripción general sin vulnerar privacidad",
-            "Coordinar patrullaje o vigilancia preventiva",
+            "Describir características de las personas",
+            "Verificar si hay comportamiento amenazante",
+            "Notificar a serenazgo de inmediato",
         ],
-        fields: [
+        camposObligatorios: [
             {
-                name: "zonaObservada",
-                label: "Zona observada",
-                type: "text",
-                placeholder: "Ej. Parque, esquina, paradero.",
+                label: "Descripción de las personas",
+                placeholder: "Ej: 2 personas con capucha rondando el área",
+                descripcion: "Características físicas o comportamiento observado.",
+                minLength: 10,
             },
             {
-                name: "riesgoPercibido",
-                label: "Riesgo percibido",
-                type: "select",
-                options: [
-                    "Bajo",
-                    "Medio",
-                    "Alto",
-                ],
-            },
-            {
-                name: "medidaPreventiva",
-                label: "Medida preventiva sugerida",
-                type: "text",
-                placeholder: "Ej. Patrullaje, iluminación, vigilancia.",
+                label: "Tiempo en el lugar",
+                placeholder: "Ej: Llevan aproximadamente 1 hora en la zona",
+                descripcion: "Cuánto tiempo llevan en el área según vecinos.",
+                minLength: 10,
             },
         ],
-        actions: [
-            "Patrullaje preventivo",
-            "Derivar a serenazgo",
-            "Monitoreo de zona",
-            "Sin intervención requerida",
-        ],
-        results: [
-            "Zona verificada",
-            "Patrullaje coordinado",
-            "No se encontró riesgo activo",
-            "Requiere seguimiento",
+        acciones: [
+            "Reparación — Coordinar patrullaje en la zona",
+            "Mitigación — Aumentar presencia de serenazgo",
+            "Derivación — Derivar a PNP",
         ],
     },
 
-    ruidos_molestos: {
-        title: "Atención por ruidos molestos",
-        description:
-            "Registra verificación de ruido, horario, fuente probable y acción municipal correspondiente.",
-        categoryLabel: "Seguridad / Convivencia",
+    "Ruidos molestos": {
         checklist: [
-            "Identificar fuente probable del ruido",
-            "Verificar horario y duración del ruido",
-            "Evaluar afectación a vecinos o transeúntes",
-            "Registrar evidencia o testimonio de la incidencia",
+            "Identificar fuente del ruido",
+            "Verificar horario de ocurrencia",
+            "Medir nivel aproximado de ruido",
         ],
-        fields: [
+        camposObligatorios: [
             {
-                name: "fuenteRuido",
-                label: "Fuente probable del ruido",
-                type: "select",
-                options: [
-                    "Vivienda",
-                    "Local comercial",
-                    "Vehículo",
-                    "Obra o construcción",
-                    "Grupo de personas",
-                    "Otra",
-                ],
+                label: "Fuente del ruido",
+                placeholder: "Ej: Local de música en Jr. Lima 234",
+                descripcion: "Indica de dónde proviene el ruido.",
+                minLength: 10,
             },
             {
-                name: "horarioRuido",
-                label: "Horario de ocurrencia",
-                type: "text",
-                placeholder: "Ej. 10:00 p. m. a 1:00 a. m.",
-            },
-            {
-                name: "nivelAfectacion",
-                label: "Nivel de afectación",
-                type: "select",
-                options: [
-                    "Bajo",
-                    "Medio",
-                    "Alto",
-                ],
-            },
-            {
-                name: "zonaAfectada",
-                label: "Zona afectada",
-                type: "text",
-                placeholder: "Ej. Manzana, edificio, parque o calle.",
+                label: "Horario del problema",
+                placeholder: "Ej: Desde las 11pm hasta las 3am",
+                descripcion: "En qué horario se produce el ruido.",
+                minLength: 5,
             },
         ],
-        actions: [
-            "Advertencia preventiva",
-            "Derivar a fiscalización",
-            "Coordinar con serenazgo",
-            "Programar medición o inspección",
-        ],
-        results: [
-            "Ruido mitigado",
-            "Advertencia registrada",
-            "Caso derivado a fiscalización",
-            "Requiere seguimiento en horario nocturno",
+        acciones: [
+            "Reparación — Solicitar reducción de volumen",
+            "Mitigación — Notificar a fiscalización",
+            "Derivación — Derivar a policía",
         ],
     },
 
-    acumulacion_basura: {
-        title: "Atención por acumulación de basura",
-        description:
-            "Registra volumen, punto exacto y acciones de limpieza o recojo.",
-        categoryLabel: "Medio ambiente",
+    "Acumulación de basura": {
         checklist: [
-            "Verificar volumen de residuos",
-            "Identificar punto exacto de acumulación",
-            "Confirmar si existe riesgo sanitario",
-            "Registrar evidencia fotográfica",
+            "Verificar volumen acumulado",
+            "Identificar punto crítico",
+            "Tomar evidencia fotográfica",
         ],
-        fields: [
+        camposObligatorios: [
             {
-                name: "volumenEstimado",
                 label: "Volumen estimado",
-                type: "text",
-                placeholder: "Ej. 3 bolsas grandes o 2 m³.",
+                placeholder: "Ej: 3 metros cúbicos aproximadamente",
+                descripcion: "Estimación del tamaño o cantidad de residuos.",
+                minLength: 5,
             },
             {
-                name: "puntoExacto",
                 label: "Punto exacto",
-                type: "text",
-                placeholder: "Ej. Frente al lote 15.",
-            },
-            {
-                name: "riesgoSanitario",
-                label: "Riesgo sanitario",
-                type: "select",
-                options: [
-                    "Sin riesgo visible",
-                    "Mal olor",
-                    "Presencia de insectos",
-                    "Presencia de roedores",
-                    "Riesgo alto",
-                ],
+                placeholder: "Ej: Vereda frente al número 245 de Av. Lima",
+                descripcion: "Ubicación precisa dentro de la dirección reportada.",
+                minLength: 10,
             },
         ],
-        actions: [
-            "Recojo de residuos",
-            "Limpieza parcial",
-            "Limpieza total",
-            "Derivar a saneamiento urbano",
-        ],
-        results: [
-            "Zona limpiada",
-            "Residuos retirados parcialmente",
-            "Se requiere unidad adicional",
-            "Derivado a otra área",
+        acciones: [
+            "Reparación — Programar recojo",
+            "Mitigación — Limpieza inmediata parcial",
+            "Derivación — Área de limpieza municipal",
         ],
     },
 
-    mal_olor: {
-        title: "Atención por mal olor en vía pública",
-        description:
-            "Permite registrar posible fuente del olor, nivel de afectación y acciones de saneamiento.",
-        categoryLabel: "Medio ambiente",
+    "Mal olor en la vía pública": {
         checklist: [
-            "Identificar posible fuente del mal olor",
-            "Verificar si hay residuos, aguas estancadas u otra causa visible",
-            "Evaluar afectación a vecinos",
-            "Registrar evidencia del área",
+            "Identificar fuente del olor",
+            "Verificar si hay residuos o aguas servidas",
+            "Documentar zona afectada",
         ],
-        fields: [
+        camposObligatorios: [
             {
-                name: "fuenteProbable",
-                label: "Fuente probable",
-                type: "select",
-                options: [
-                    "Residuos",
-                    "Desagüe",
-                    "Agua estancada",
-                    "Animal muerto",
-                    "Origen no identificado",
-                ],
+                label: "Fuente probable del olor",
+                placeholder: "Ej: Desagüe tapado en la esquina de Av. Lima",
+                descripcion: "Indica de dónde parece provenir el mal olor.",
+                minLength: 10,
             },
             {
-                name: "intensidad",
-                label: "Intensidad del olor",
-                type: "select",
-                options: [
-                    "Baja",
-                    "Media",
-                    "Alta",
-                ],
-            },
-            {
-                name: "areaAfectada",
-                label: "Área afectada",
-                type: "text",
-                placeholder: "Ej. Media cuadra, parque, esquina.",
+                label: "Extensión del área afectada",
+                placeholder: "Ej: Media cuadra de Av. Lima",
+                descripcion: "Cuánto espacio abarca el problema.",
+                minLength: 5,
             },
         ],
-        actions: [
-            "Limpieza de zona",
-            "Derivar a saneamiento",
-            "Coordinar inspección",
-            "Aplicar medida temporal",
-        ],
-        results: [
-            "Olor reducido",
-            "Fuente identificada",
-            "Caso derivado",
-            "Requiere seguimiento",
+        acciones: [
+            "Reparación — Limpiar la fuente del olor",
+            "Mitigación — Aplicar desinfectante",
+            "Derivación — Derivar a saneamiento",
         ],
     },
 
-    areas_verdes: {
-        title: "Atención por contaminación de áreas verdes",
-        description:
-            "Registra daño ambiental, tipo de contaminación y acción de recuperación.",
-        categoryLabel: "Medio ambiente",
+    "Contaminación de áreas verdes": {
         checklist: [
-            "Verificar área verde afectada",
-            "Identificar tipo de contaminación o daño",
-            "Evaluar riesgo para usuarios del espacio",
-            "Registrar evidencia fotográfica",
+            "Verificar tipo de contaminación",
+            "Identificar área afectada",
+            "Documentar daño a la vegetación",
         ],
-        fields: [
+        camposObligatorios: [
             {
-                name: "tipoContaminacion",
                 label: "Tipo de contaminación",
-                type: "select",
-                options: [
-                    "Residuos sólidos",
-                    "Daño a vegetación",
-                    "Quema",
-                    "Agua contaminada",
-                    "Otro",
-                ],
+                placeholder: "Ej: Vertido de aceite en el parque",
+                descripcion: "Describe qué tipo de contaminante se encontró.",
+                minLength: 10,
             },
             {
-                name: "areaComprometida",
-                label: "Área comprometida",
-                type: "text",
-                placeholder: "Ej. 10 m², jardín central, zona de juegos.",
-            },
-            {
-                name: "riesgoUsuarios",
-                label: "Riesgo para usuarios",
-                type: "select",
-                options: [
-                    "Bajo",
-                    "Medio",
-                    "Alto",
-                ],
-            },
-        ],
-        actions: [
-            "Limpieza de área verde",
-            "Retiro de residuos",
-            "Derivar a parques y jardines",
-            "Aislar zona afectada",
-        ],
-        results: [
-            "Área limpiada",
-            "Área recuperada parcialmente",
-            "Requiere mantenimiento adicional",
-            "Derivado a parques y jardines",
-        ],
-    },
-
-    residuos_contenedores: {
-        title: "Atención por residuos fuera de contenedores",
-        description:
-            "Registra condiciones del contenedor, residuos externos y acción de recojo.",
-        categoryLabel: "Medio ambiente",
-        checklist: [
-            "Verificar residuos fuera del contenedor",
-            "Revisar si el contenedor está lleno o dañado",
-            "Identificar punto exacto",
-            "Registrar evidencia fotográfica",
-        ],
-        fields: [
-            {
-                name: "estadoContenedor",
-                label: "Estado del contenedor",
-                type: "select",
-                options: [
-                    "Lleno",
-                    "Dañado",
-                    "Ausente",
-                    "Operativo",
-                ],
-            },
-            {
-                name: "volumenExterno",
-                label: "Volumen de residuos externos",
-                type: "text",
-                placeholder: "Ej. 5 bolsas, 1 m³.",
-            },
-            {
-                name: "puntoExacto",
-                label: "Punto exacto",
-                type: "text",
-                placeholder: "Ej. Al lado del contenedor principal.",
-            },
-        ],
-        actions: [
-            "Recojo de residuos externos",
-            "Reposición o reparación de contenedor",
-            "Limpieza de punto crítico",
-            "Derivar a saneamiento urbano",
-        ],
-        results: [
-            "Residuos retirados",
-            "Contenedor reportado para reparación",
-            "Zona limpiada",
-            "Requiere recojo adicional",
-        ],
-    },
-
-    quema_residuos: {
-        title: "Atención por quema de residuos",
-        description:
-            "Registra verificación de quema, riesgo ambiental y medidas de mitigación.",
-        categoryLabel: "Medio ambiente",
-        checklist: [
-            "Verificar evidencia de quema",
-            "Evaluar presencia de humo o cenizas",
-            "Identificar riesgo para vecinos",
-            "Coordinar acción de mitigación o fiscalización",
-        ],
-        fields: [
-            {
-                name: "estadoQuema",
-                label: "Estado de la quema",
-                type: "select",
-                options: [
-                    "Activa",
-                    "Finalizada",
-                    "Restos de quema",
-                ],
-            },
-            {
-                name: "materialQuemado",
-                label: "Material quemado",
-                type: "text",
-                placeholder: "Ej. Plástico, ramas, basura domiciliaria.",
-            },
-            {
-                name: "riesgoAmbiental",
-                label: "Riesgo ambiental",
-                type: "select",
-                options: [
-                    "Bajo",
-                    "Medio",
-                    "Alto",
-                ],
-            },
-        ],
-        actions: [
-            "Mitigación inmediata",
-            "Derivar a fiscalización ambiental",
-            "Limpieza de restos",
-            "Registrar punto crítico",
-        ],
-        results: [
-            "Quema controlada",
-            "Zona limpiada",
-            "Caso derivado",
-            "Requiere seguimiento",
-        ],
-    },
-
-    alumbrado_defectuoso: {
-        title: "Atención por alumbrado público defectuoso",
-        description:
-            "Registra poste o luminaria afectada, tipo de falla y acción correctiva.",
-        categoryLabel: "Infraestructura",
-        checklist: [
-            "Identificar poste o luminaria afectada",
-            "Verificar si la falla es parcial o total",
-            "Revisar riesgo para peatones o vehículos",
-            "Registrar evidencia fotográfica",
-        ],
-        fields: [
-            {
-                name: "codigoPoste",
-                label: "Código o referencia del poste",
-                type: "text",
-                placeholder: "Ej. Poste frente al lote 20.",
-            },
-            {
-                name: "tipoFalla",
-                label: "Tipo de falla",
-                type: "select",
-                options: [
-                    "Luz apagada",
-                    "Luz intermitente",
-                    "Cable expuesto",
-                    "Poste dañado",
-                    "Otro",
-                ],
-            },
-            {
-                name: "riesgoSeguridad",
-                label: "Riesgo de seguridad",
-                type: "select",
-                options: [
-                    "Bajo",
-                    "Medio",
-                    "Alto",
-                ],
-            },
-        ],
-        actions: [
-            "Cambio de luminaria",
-            "Revisión eléctrica",
-            "Señalización preventiva",
-            "Derivar a empresa eléctrica",
-        ],
-        results: [
-            "Luminaria reparada",
-            "Falla mitigada",
-            "Requiere intervención externa",
-            "Derivado a empresa eléctrica",
-        ],
-    },
-
-    pistas_mal_estado: {
-        title: "Atención por pistas en mal estado",
-        description:
-            "Registra dimensiones, riesgo vial y acción de reparación o señalización.",
-        categoryLabel: "Infraestructura",
-        checklist: [
-            "Verificar estado de la pista",
-            "Medir o estimar área afectada",
-            "Evaluar riesgo para vehículos",
-            "Señalizar la zona si corresponde",
-        ],
-        fields: [
-            {
-                name: "areaAfectada",
                 label: "Área afectada",
-                type: "text",
-                placeholder: "Ej. 2 m² o tramo de 5 metros.",
-            },
-            {
-                name: "tipoDano",
-                label: "Tipo de daño",
-                type: "select",
-                options: [
-                    "Bache",
-                    "Grieta",
-                    "Hundimiento",
-                    "Desnivel",
-                    "Otro",
-                ],
-            },
-            {
-                name: "riesgoVial",
-                label: "Riesgo vial",
-                type: "select",
-                options: [
-                    "Bajo",
-                    "Medio",
-                    "Alto",
-                ],
+                placeholder: "Ej: 20 metros cuadrados del parque central",
+                descripcion: "Extensión aproximada del área contaminada.",
+                minLength: 5,
             },
         ],
-        actions: [
-            "Señalización preventiva",
-            "Reparación temporal",
-            "Reparación definitiva",
-            "Derivar a obras públicas",
-        ],
-        results: [
-            "Zona señalizada",
-            "Daño reparado temporalmente",
-            "Daño reparado completamente",
-            "Requiere maquinaria especializada",
+        acciones: [
+            "Reparación — Limpiar área contaminada",
+            "Mitigación — Cercar zona afectada",
+            "Derivación — Derivar a medio ambiente",
         ],
     },
 
-    veredas_mal_estado: {
-        title: "Atención por veredas en mal estado",
-        description:
-            "Registra daño peatonal, nivel de riesgo y medida correctiva.",
-        categoryLabel: "Infraestructura",
+    "Residuos fuera de contenedores": {
         checklist: [
-            "Verificar daño en vereda",
-            "Evaluar riesgo para peatones",
-            "Identificar extensión del daño",
-            "Registrar evidencia fotográfica",
+            "Verificar estado del contenedor",
+            "Estimar cantidad de residuos fuera",
+            "Identificar si hay riesgo de salud",
         ],
-        fields: [
+        camposObligatorios: [
             {
-                name: "tipoDano",
-                label: "Tipo de daño",
-                type: "select",
-                options: [
-                    "Rajadura",
-                    "Hundimiento",
-                    "Loseta rota",
-                    "Obstrucción",
-                    "Otro",
-                ],
+                label: "Estado del contenedor",
+                placeholder: "Ej: Contenedor lleno y desbordado",
+                descripcion: "Describe el estado actual del contenedor.",
+                minLength: 10,
             },
             {
-                name: "extension",
-                label: "Extensión aproximada",
-                type: "text",
-                placeholder: "Ej. 2 metros lineales.",
-            },
-            {
-                name: "riesgoPeatonal",
-                label: "Riesgo peatonal",
-                type: "select",
-                options: [
-                    "Bajo",
-                    "Medio",
-                    "Alto",
-                ],
+                label: "Cantidad de residuos",
+                placeholder: "Ej: 5 bolsas grandes fuera del contenedor",
+                descripcion: "Estimación de residuos fuera del contenedor.",
+                minLength: 5,
             },
         ],
-        actions: [
-            "Señalización preventiva",
-            "Reparación temporal",
-            "Derivar a obras públicas",
-            "Retiro de obstrucción",
-        ],
-        results: [
-            "Zona señalizada",
-            "Vereda reparada temporalmente",
-            "Caso derivado",
-            "Riesgo mitigado",
+        acciones: [
+            "Reparación — Recoger residuos y limpiar",
+            "Mitigación — Colocar señalización",
+            "Derivación — Solicitar vaciado urgente",
         ],
     },
 
-    semaforos_inoperativos: {
-        title: "Atención por semáforos inoperativos",
-        description:
-            "Registra intersección, tipo de falla y acción de seguridad vial.",
-        categoryLabel: "Infraestructura / Movilidad",
+    "Quema de residuos": {
         checklist: [
-            "Identificar intersección afectada",
+            "Verificar si el fuego está activo",
+            "Identificar tipo de material quemado",
+            "Evaluar riesgo de propagación",
+        ],
+        camposObligatorios: [
+            {
+                label: "Estado del incendio",
+                placeholder: "Ej: Fuego controlado en contenedor de basura",
+                descripcion: "Describe si el fuego está activo o ya apagado.",
+                minLength: 10,
+            },
+            {
+                label: "Material quemado",
+                placeholder: "Ej: Bolsas de plástico y cartones",
+                descripcion: "Tipo de residuos que se están quemando.",
+                minLength: 5,
+            },
+        ],
+        acciones: [
+            "Reparación — Apagar el fuego",
+            "Mitigación — Llamar a bomberos",
+            "Derivación — Derivar a defensa civil",
+        ],
+    },
+
+    "Pistas en mal estado": {
+        checklist: [
+            "Evaluar extensión del daño",
+            "Verificar riesgo vial",
+            "Medir área afectada",
+        ],
+        camposObligatorios: [
+            {
+                label: "Metros afectados",
+                placeholder: "Ej: 15 metros lineales de pista dañada",
+                descripcion: "Longitud aproximada del tramo en mal estado.",
+                minLength: 5,
+            },
+            {
+                label: "Nivel de riesgo",
+                placeholder: "Ej: Alto — huecos de más de 20cm de profundidad",
+                descripcion: "Indica si representa peligro inmediato.",
+                minLength: 10,
+            },
+        ],
+        acciones: [
+            "Reparación — Reparación en sitio",
+            "Mitigación — Señalización temporal",
+            "Derivación — Derivar a infraestructura",
+        ],
+    },
+
+    "Alumbrado público defectuoso": {
+        checklist: [
+            "Identificar cantidad de postes afectados",
             "Verificar tipo de falla",
-            "Evaluar riesgo vehicular o peatonal",
-            "Registrar evidencia fotográfica",
+            "Revisar zona de cobertura",
         ],
-        fields: [
+        camposObligatorios: [
             {
-                name: "interseccion",
-                label: "Intersección",
-                type: "text",
-                placeholder: "Ej. Av. Principal con Calle 5.",
+                label: "Número de postes",
+                placeholder: "Ej: 3 postes consecutivos sin luz",
+                descripcion: "Cantidad de postes afectados en el tramo.",
+                minLength: 5,
             },
             {
-                name: "tipoFalla",
                 label: "Tipo de falla",
-                type: "select",
-                options: [
-                    "Apagado total",
-                    "Luz roja apagada",
-                    "Luz amarilla apagada",
-                    "Luz verde apagada",
-                    "Intermitente",
-                    "Otro",
-                ],
-            },
-            {
-                name: "riesgoVial",
-                label: "Riesgo vial",
-                type: "select",
-                options: [
-                    "Bajo",
-                    "Medio",
-                    "Alto",
-                ],
+                placeholder: "Ej: Lámpara quemada / cable cortado / poste dañado",
+                descripcion: "Describe visualmente cuál es el problema.",
+                minLength: 5,
             },
         ],
-        actions: [
-            "Señalización temporal",
-            "Reinicio o revisión del semáforo",
-            "Derivar a mantenimiento vial",
-            "Coordinar apoyo de tránsito",
-        ],
-        results: [
-            "Señalización instalada",
-            "Falla corregida",
-            "Requiere mantenimiento especializado",
-            "Derivado a mantenimiento vial",
+        acciones: [
+            "Reparación — Reemplazo de luminaria",
+            "Mitigación — Revisión de cableado",
+            "Derivación — Derivar a empresa eléctrica",
         ],
     },
 
-    senalizacion_danada: {
-        title: "Atención por señalización dañada",
-        description:
-            "Registra señal afectada, visibilidad y acción de reposición o reparación.",
-        categoryLabel: "Infraestructura / Movilidad",
+    "Veredas en mal estado": {
         checklist: [
-            "Identificar señal dañada",
-            "Evaluar visibilidad para peatones o conductores",
-            "Verificar riesgo asociado",
-            "Registrar evidencia fotográfica",
+            "Evaluar extensión del daño",
+            "Verificar riesgo para peatones",
+            "Identificar causa del deterioro",
         ],
-        fields: [
+        camposObligatorios: [
             {
-                name: "tipoSenal",
+                label: "Metros afectados",
+                placeholder: "Ej: 10 metros de vereda levantada",
+                descripcion: "Longitud aproximada de la vereda dañada.",
+                minLength: 5,
+            },
+            {
+                label: "Tipo de daño",
+                placeholder: "Ej: Losas levantadas por raíces de árbol",
+                descripcion: "Describe qué tipo de daño presenta la vereda.",
+                minLength: 10,
+            },
+        ],
+        acciones: [
+            "Reparación — Reparar losas dañadas",
+            "Mitigación — Señalizar zona peligrosa",
+            "Derivación — Derivar a infraestructura",
+        ],
+    },
+
+    "Semáforos inoperativos": {
+        checklist: [
+            "Verificar cuántos semáforos están afectados",
+            "Evaluar riesgo de accidentes",
+            "Coordinar tráfico manualmente si es necesario",
+        ],
+        camposObligatorios: [
+            {
+                label: "Semáforos afectados",
+                placeholder: "Ej: 2 semáforos en la intersección de Av. Lima",
+                descripcion: "Cantidad y ubicación de semáforos inoperativos.",
+                minLength: 10,
+            },
+            {
+                label: "Tipo de falla",
+                placeholder: "Ej: Sin energía / pantalla rota / luces parpadeando",
+                descripcion: "Describe qué falla presenta el semáforo.",
+                minLength: 5,
+            },
+        ],
+        acciones: [
+            "Reparación — Solicitar reparación técnica",
+            "Mitigación — Control manual del tráfico",
+            "Derivación — Derivar a empresa de señalización",
+        ],
+    },
+
+    "Señalización dañada": {
+        checklist: [
+            "Identificar tipo de señal dañada",
+            "Verificar si genera riesgo vial",
+            "Documentar ubicación exacta",
+        ],
+        camposObligatorios: [
+            {
                 label: "Tipo de señal",
-                type: "text",
-                placeholder: "Ej. Pare, cruce peatonal, límite de velocidad.",
+                placeholder: "Ej: Señal de pare caída / líneas de cruce borradas",
+                descripcion: "Describe qué tipo de señalización está dañada.",
+                minLength: 10,
             },
             {
-                name: "estadoSenal",
-                label: "Estado de la señal",
-                type: "select",
-                options: [
-                    "Rota",
-                    "Borrada",
-                    "Inclinada",
-                    "Ausente",
-                    "Obstruida",
-                ],
-            },
-            {
-                name: "riesgo",
-                label: "Riesgo asociado",
-                type: "select",
-                options: [
-                    "Bajo",
-                    "Medio",
-                    "Alto",
-                ],
+                label: "Nivel de riesgo",
+                placeholder: "Ej: Alto — señal irreconocible",
+                descripcion: "Si la señal dañada representa riesgo inmediato.",
+                minLength: 5,
             },
         ],
-        actions: [
-            "Reposición de señal",
-            "Reparación de señal",
-            "Señalización temporal",
-            "Derivar a mantenimiento vial",
-        ],
-        results: [
-            "Señal reparada",
-            "Señal repuesta",
-            "Zona señalizada temporalmente",
-            "Requiere intervención adicional",
+        acciones: [
+            "Reparación — Reemplazar señal dañada",
+            "Mitigación — Señalización temporal",
+            "Derivación — Derivar a tránsito",
         ],
     },
 
-    congestion_vehicular: {
-        title: "Atención por congestión vehicular",
-        description:
-            "Registra punto de congestión, causa probable y medida de apoyo operativo.",
-        categoryLabel: "Movilidad",
+    "Congestión vehicular": {
         checklist: [
-            "Verificar punto de congestión",
-            "Identificar causa probable",
-            "Evaluar impacto en tránsito",
-            "Coordinar apoyo operativo si corresponde",
+            "Identificar causa de la congestión",
+            "Estimar longitud de la cola vehicular",
+            "Verificar si hay accidente involucrado",
         ],
-        fields: [
+        camposObligatorios: [
             {
-                name: "puntoCongestion",
-                label: "Punto de congestión",
-                type: "text",
-                placeholder: "Ej. Cruce, avenida o paradero.",
+                label: "Causa de la congestión",
+                placeholder: "Ej: Obras en la vía reducen carriles",
+                descripcion: "Describe qué está causando el problema de tráfico.",
+                minLength: 10,
             },
             {
-                name: "causaProbable",
-                label: "Causa probable",
-                type: "select",
-                options: [
-                    "Obra",
-                    "Accidente",
-                    "Semáforo defectuoso",
-                    "Estacionamiento indebido",
-                    "Alta demanda vehicular",
-                    "Otra",
-                ],
-            },
-            {
-                name: "nivelImpacto",
-                label: "Nivel de impacto",
-                type: "select",
-                options: [
-                    "Bajo",
-                    "Medio",
-                    "Alto",
-                ],
+                label: "Impacto estimado",
+                placeholder: "Ej: Cola de 3 cuadras, demora aproximada 20 min",
+                descripcion: "Longitud de la cola y tiempo de demora estimado.",
+                minLength: 10,
             },
         ],
-        actions: [
-            "Apoyo de tránsito",
-            "Ordenamiento temporal",
-            "Derivar a movilidad urbana",
-            "Monitoreo del punto",
-        ],
-        results: [
-            "Flujo vehicular mejorado",
-            "Caso derivado a movilidad",
-            "Requiere intervención adicional",
-            "Zona monitoreada",
+        acciones: [
+            "Reparación — Desviar el tráfico",
+            "Mitigación — Control manual del flujo",
+            "Derivación — Derivar a policía de tránsito",
         ],
     },
 
-    estacionamiento_prohibido: {
-        title: "Atención por estacionamiento en zona prohibida",
-        description:
-            "Registra ubicación, tipo de obstrucción y acción de fiscalización.",
-        categoryLabel: "Movilidad",
+    "Autos abandonados": {
         checklist: [
-            "Verificar vehículo estacionado en zona prohibida",
-            "Evaluar obstrucción vehicular o peatonal",
-            "Registrar evidencia fotográfica",
-            "Coordinar fiscalización si corresponde",
+            "Verificar placa del vehículo",
+            "Estimar tiempo de abandono",
+            "Verificar si obstruye el tráfico",
         ],
-        fields: [
+        camposObligatorios: [
             {
-                name: "tipoObstruccion",
-                label: "Tipo de obstrucción",
-                type: "select",
-                options: [
-                    "Vereda",
-                    "Ciclovía",
-                    "Paradero",
-                    "Zona rígida",
-                    "Entrada vehicular",
-                    "Otra",
-                ],
-            },
-            {
-                name: "placaVisible",
-                label: "Placa visible",
-                type: "text",
-                placeholder: "Ej. ABC-123 o no visible.",
-            },
-            {
-                name: "riesgo",
-                label: "Riesgo generado",
-                type: "select",
-                options: [
-                    "Bajo",
-                    "Medio",
-                    "Alto",
-                ],
-            },
-        ],
-        actions: [
-            "Notificación preventiva",
-            "Derivar a fiscalización",
-            "Solicitar retiro del vehículo",
-            "Registrar reincidencia",
-        ],
-        results: [
-            "Vehículo retirado",
-            "Notificación emitida",
-            "Caso derivado",
-            "Requiere seguimiento",
-        ],
-    },
-
-    transporte_publico: {
-        title: "Atención por transporte público deficiente",
-        description:
-            "Registra problema observado, punto afectado y derivación a movilidad.",
-        categoryLabel: "Movilidad",
-        checklist: [
-            "Verificar punto reportado",
-            "Identificar tipo de deficiencia",
-            "Evaluar afectación a usuarios",
-            "Registrar evidencia o testimonio",
-        ],
-        fields: [
-            {
-                name: "tipoDeficiencia",
-                label: "Tipo de deficiencia",
-                type: "select",
-                options: [
-                    "Demora excesiva",
-                    "Paradero informal",
-                    "Mala conducta",
-                    "Unidad en mal estado",
-                    "Ruta deficiente",
-                    "Otra",
-                ],
-            },
-            {
-                name: "puntoAfectado",
-                label: "Punto afectado",
-                type: "text",
-                placeholder: "Ej. Paradero, avenida o cruce.",
-            },
-            {
-                name: "impactoUsuarios",
-                label: "Impacto en usuarios",
-                type: "select",
-                options: [
-                    "Bajo",
-                    "Medio",
-                    "Alto",
-                ],
-            },
-        ],
-        actions: [
-            "Derivar a movilidad urbana",
-            "Registrar incidencia de ruta",
-            "Coordinar inspección",
-            "Monitorear punto",
-        ],
-        results: [
-            "Caso derivado",
-            "Punto monitoreado",
-            "Inspección programada",
-            "Requiere seguimiento",
-        ],
-    },
-
-    autos_abandonados: {
-        title: "Atención por autos abandonados",
-        description:
-            "Registra vehículo, ubicación, riesgo y acción de retiro o fiscalización.",
-        categoryLabel: "Movilidad",
-        checklist: [
-            "Verificar presencia del vehículo",
-            "Registrar ubicación exacta",
-            "Evaluar obstrucción o riesgo",
-            "Registrar evidencia fotográfica",
-        ],
-        fields: [
-            {
-                name: "placa",
                 label: "Placa del vehículo",
-                type: "text",
-                placeholder: "Ej. ABC-123 o no visible.",
+                placeholder: "Ej: ABC-123 o sin placa visible",
+                descripcion: "Número de placa del vehículo abandonado.",
+                minLength: 5,
             },
             {
-                name: "estadoVehiculo",
-                label: "Estado del vehículo",
-                type: "select",
-                options: [
-                    "Operativo aparente",
-                    "Deteriorado",
-                    "Sin llantas",
-                    "Chatarra",
-                    "Otro",
-                ],
-            },
-            {
-                name: "obstruccion",
-                label: "Obstrucción o riesgo",
-                type: "select",
-                options: [
-                    "Bajo",
-                    "Medio",
-                    "Alto",
-                ],
+                label: "Tiempo de abandono",
+                placeholder: "Ej: Vecinos indican que lleva 3 días ahí",
+                descripcion: "Tiempo aproximado que lleva abandonado.",
+                minLength: 10,
             },
         ],
-        actions: [
-            "Notificación al propietario",
-            "Derivar a fiscalización",
-            "Coordinar retiro",
-            "Registrar para seguimiento",
-        ],
-        results: [
-            "Vehículo retirado",
-            "Notificación emitida",
-            "Caso derivado",
-            "Requiere seguimiento",
+        acciones: [
+            "Reparación — Solicitar grúa municipal",
+            "Mitigación — Señalizar el vehículo",
+            "Derivación — Derivar a policía de tránsito",
         ],
     },
 
-    exceso_velocidad: {
-        title: "Atención por exceso de velocidad",
-        description:
-            "Registra punto de riesgo, horario y acción preventiva de movilidad.",
-        categoryLabel: "Movilidad",
+    "Exceso de velocidad": {
         checklist: [
-            "Verificar punto de riesgo",
-            "Identificar horario de mayor ocurrencia",
-            "Evaluar riesgo para peatones",
-            "Coordinar medida preventiva",
+            "Identificar zona de riesgo",
+            "Verificar señalización de velocidad",
+            "Evaluar frecuencia del problema",
         ],
-        fields: [
+        camposObligatorios: [
             {
-                name: "puntoRiesgo",
-                label: "Punto de riesgo",
-                type: "text",
-                placeholder: "Ej. Cruce escolar, avenida o curva.",
+                label: "Zona de riesgo",
+                placeholder: "Ej: Cuadra 5 de Av. Lima frente al colegio",
+                descripcion: "Indica el tramo donde se produce el exceso de velocidad.",
+                minLength: 10,
             },
             {
-                name: "horarioFrecuente",
-                label: "Horario frecuente",
-                type: "text",
-                placeholder: "Ej. 7:00 a. m. a 9:00 a. m.",
+                label: "Frecuencia del problema",
+                placeholder: "Ej: Principalmente en horas de salida escolar",
+                descripcion: "Cuándo o con qué frecuencia ocurre.",
+                minLength: 10,
+            },
+        ],
+        acciones: [
+            "Reparación — Instalar reductor de velocidad",
+            "Mitigación — Colocar señalización adicional",
+            "Derivación — Derivar a policía de tránsito",
+        ],
+    },
+
+    "Estacionamiento en zonas prohibidas": {
+        checklist: [
+            "Verificar señalización de zona prohibida",
+            "Documentar placa del vehículo",
+            "Verificar si obstruye entrada o paso",
+        ],
+        camposObligatorios: [
+            {
+                label: "Placa del vehículo",
+                placeholder: "Ej: XYZ-456",
+                descripcion: "Número de placa del vehículo mal estacionado.",
+                minLength: 5,
             },
             {
-                name: "riesgoPeatonal",
-                label: "Riesgo peatonal",
-                type: "select",
-                options: [
-                    "Bajo",
-                    "Medio",
-                    "Alto",
-                ],
+                label: "Tipo de obstrucción",
+                placeholder: "Ej: Bloquea entrada de emergencias",
+                descripcion: "Qué está obstruyendo el vehículo.",
+                minLength: 10,
             },
         ],
-        actions: [
-            "Señalización preventiva",
-            "Derivar a movilidad urbana",
-            "Coordinar control de velocidad",
-            "Solicitar evaluación de reductores",
+        acciones: [
+            "Reparación — Solicitar retiro del vehículo",
+            "Mitigación — Notificar al propietario",
+            "Derivación — Derivar a policía de tránsito",
         ],
-        results: [
-            "Zona señalizada",
-            "Caso derivado",
-            "Control programado",
-            "Requiere evaluación técnica",
+    },
+
+    "Transporte público deficiente": {
+        checklist: [
+            "Identificar línea de transporte afectada",
+            "Verificar tipo de deficiencia",
+            "Documentar horario del problema",
+        ],
+        camposObligatorios: [
+            {
+                label: "Línea afectada",
+                placeholder: "Ej: Ruta 5 — Av. Arequipa hacia Miraflores",
+                descripcion: "Indica qué línea o ruta presenta el problema.",
+                minLength: 10,
+            },
+            {
+                label: "Tipo de deficiencia",
+                placeholder: "Ej: Unidades en mal estado, baja frecuencia",
+                descripcion: "Describe cuál es el problema con el servicio.",
+                minLength: 10,
+            },
+        ],
+        acciones: [
+            "Reparación — Reportar a concesionaria",
+            "Mitigación — Notificar a supervisión de transporte",
+            "Derivación — Derivar a autoridad de transporte",
         ],
     },
 };
 
-function normalizeText(value: string) {
-    return value
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .trim();
-}
+const catalogoDefault: CatalogoAtencion = {
+    checklist: [
+        "Verificar incidencia en sitio",
+        "Documentar hallazgos",
+        "Tomar fotografías si es posible",
+    ],
+    camposObligatorios: [
+        {
+            label: "Observaciones de campo",
+            placeholder: "Ej: Se encontró el problema tal como fue reportado.",
+            descripcion: "Describe lo que encontraste al llegar al lugar.",
+            minLength: 10,
+        },
+    ],
+    acciones: [
+        "Reparación — Evaluar situación",
+        "Mitigación — Tomar medidas correctivas",
+        "Derivación — Derivar si es necesario",
+    ],
+};
 
-function getTemplateByProblemType(problemType: string) {
-    const normalized =
-        normalizeText(problemType);
+const resultadosTecnicos = [
+    {
+        valor: "Aparentemente resuelto",
+        etiqueta: "Aparentemente resuelto",
+    },
+    {
+        valor: "Parcialmente atendido",
+        etiqueta: "Parcialmente atendido",
+    },
+    {
+        valor: "Requiere intervención adicional",
+        etiqueta: "Requiere intervención adicional",
+    },
+    {
+        valor: "Caso derivado",
+        etiqueta: "Caso derivado",
+    },
+    {
+        valor: "No se pudo verificar",
+        etiqueta: "No se pudo verificar",
+    },
+];
 
-    if (normalized.includes("robo") || normalized.includes("asalto")) return templates.robos_asaltos;
-    if (normalized.includes("alcohol")) return templates.alcohol_via_publica;
-    if (normalized.includes("venta ambulante")) return templates.venta_ambulante;
-    if (normalized.includes("sospechosa")) return templates.personas_sospechosas;
-    if (normalized.includes("ruido")) return templates.ruidos_molestos;
+const pasosSidebar = [
+    "Verificación en sitio",
+    "Datos requeridos",
+    "Acción realizada",
+    "Resultado preliminar",
+];
 
-    if (normalized.includes("acumulacion") || normalized.includes("basura")) return templates.acumulacion_basura;
-    if (normalized.includes("mal olor")) return templates.mal_olor;
-    if (normalized.includes("area verde") || normalized.includes("areas verdes") || normalized.includes("contaminacion")) return templates.areas_verdes;
-    if (normalized.includes("residuo") && normalized.includes("contenedor")) return templates.residuos_contenedores;
-    if (normalized.includes("quema")) return templates.quema_residuos;
-
-    if (normalized.includes("alumbrado")) return templates.alumbrado_defectuoso;
-    if (normalized.includes("pista")) return templates.pistas_mal_estado;
-    if (normalized.includes("vereda")) return templates.veredas_mal_estado;
-    if (normalized.includes("semaforo")) return templates.semaforos_inoperativos;
-    if (normalized.includes("senalizacion")) return templates.senalizacion_danada;
-
-    if (normalized.includes("congestion")) return templates.congestion_vehicular;
-    if (normalized.includes("estacionamiento")) return templates.estacionamiento_prohibido;
-    if (normalized.includes("transporte publico")) return templates.transporte_publico;
-    if (normalized.includes("auto") || normalized.includes("vehiculo abandonado")) return templates.autos_abandonados;
-    if (normalized.includes("velocidad")) return templates.exceso_velocidad;
-
-    return defaultTemplate;
-}
+const campoExtra: CampoConfig = {
+    label: "Observaciones adicionales",
+    placeholder: "Ej: Detalles relevantes no cubiertos arriba, o N/A si no aplica.",
+    descripcion: "Información adicional relevante para el caso.",
+    minLength: 2,
+};
 
 export default function TechnicianAttendPage() {
-    const navigate =
-        useNavigate();
-
     const { id } =
         useParams();
+
+    const navigate =
+        useNavigate();
 
     const [report, setReport] =
         useState<Report | null>(null);
@@ -1238,42 +660,56 @@ export default function TechnicianAttendPage() {
     const [saving, setSaving] =
         useState(false);
 
-    const [error, setError] =
+    const [savedMessage, setSavedMessage] =
         useState("");
 
-    const [successMessage, setSuccessMessage] =
+    const [errorMessage, setErrorMessage] =
         useState("");
 
-    const [checklist, setChecklist] =
-        useState<Record<string, boolean>>({});
-
-    const [fieldValues, setFieldValues] =
+    const [errores, setErrores] =
         useState<Record<string, string>>({});
 
-    const [actionTaken, setActionTaken] =
+    const [checklistCompletado, setChecklistCompletado] =
+        useState<Record<string, boolean>>({});
+
+    const [campos, setCampos] =
+        useState<Record<string, string>>({});
+
+    const [accionSeleccionada, setAccionSeleccionada] =
         useState("");
 
-    const [technicalResult, setTechnicalResult] =
-        useState("");
-
-    const [observations, setObservations] =
+    const [resultadoSeleccionado, setResultadoSeleccionado] =
         useState("");
 
     const technicianId =
         localStorage.getItem("userId") || "";
 
-    const template =
+    const catalogo =
         useMemo(() => {
-            return getTemplateByProblemType(
-                report?.problemType || ""
-            );
-        }, [report?.problemType]);
+            const base =
+                report
+                    ? catalogoAtencion[report.problemType] ??
+                      catalogoDefault
+                    : catalogoDefault;
+
+            return {
+                ...base,
+                camposObligatorios: [
+                    ...base.camposObligatorios,
+                    campoExtra,
+                ],
+            };
+        }, [report]);
+
+    const storageKey =
+        `technician-attend-${id}`;
 
     useEffect(() => {
         const fetchReport =
             async () => {
                 try {
                     setLoading(true);
+                    setErrorMessage("");
 
                     const response =
                         await fetch(
@@ -1286,14 +722,14 @@ export default function TechnicianAttendPage() {
                     if (!response.ok) {
                         throw new Error(
                             data?.message ||
-                            "No se pudo obtener el reporte."
+                            "No se pudo cargar el reporte."
                         );
                     }
 
                     setReport(data);
 
                 } catch (error: any) {
-                    setError(
+                    setErrorMessage(
                         error.message ||
                         "No se pudo cargar el reporte."
                     );
@@ -1307,213 +743,326 @@ export default function TechnicianAttendPage() {
     }, [id]);
 
     useEffect(() => {
-        const initialChecklist:
-            Record<string, boolean> = {};
-
-        const initialFields:
-            Record<string, string> = {};
-
-        template.checklist.forEach((item) => {
-            initialChecklist[item] = false;
-        });
-
-        template.fields.forEach((field) => {
-            initialFields[field.name] = "";
-        });
-
-        setChecklist(initialChecklist);
-        setFieldValues(initialFields);
-        setActionTaken("");
-        setTechnicalResult("");
-        setObservations("");
-    }, [template]);
-
-    const allChecklistCompleted =
-        Object.values(checklist).length > 0 &&
-        Object.values(checklist).every(Boolean);
-
-    const allFieldsCompleted =
-        template.fields.every((field) =>
-            fieldValues[field.name]?.trim()
-        );
-
-    const canSubmit =
-        allChecklistCompleted &&
-        allFieldsCompleted &&
-        actionTaken &&
-        technicalResult &&
-        !saving;
-
-    const handleChecklistChange = (
-        item: string
-    ) => {
-        setChecklist((prev) => ({
-            ...prev,
-            [item]: !prev[item],
-        }));
-    };
-
-    const handleFieldChange = (
-        fieldName: string,
-        value: string
-    ) => {
-        setFieldValues((prev) => ({
-            ...prev,
-            [fieldName]: value,
-        }));
-    };
-
-    const handleSubmit = async (
-        event: React.FormEvent
-    ) => {
-        event.preventDefault();
-
         if (!report) {
             return;
         }
 
-        if (!technicianId) {
-            setError(
-                "No se encontró el técnico en sesión."
-            );
+        const saved =
+            localStorage.getItem(storageKey);
+
+        if (saved) {
+            try {
+                const parsed =
+                    JSON.parse(saved);
+
+                setChecklistCompletado(
+                    parsed.checklistCompletado ??
+                    catalogo.checklist.reduce(
+                        (acc, item) => ({
+                            ...acc,
+                            [item]: false,
+                        }),
+                        {}
+                    )
+                );
+
+                setCampos(
+                    parsed.campos ??
+                    catalogo.camposObligatorios.reduce(
+                        (acc, campo) => ({
+                            ...acc,
+                            [campo.label]: "",
+                        }),
+                        {}
+                    )
+                );
+
+                setAccionSeleccionada(
+                    parsed.accionSeleccionada ?? ""
+                );
+
+                setResultadoSeleccionado(
+                    parsed.resultadoSeleccionado ?? ""
+                );
+
+                return;
+
+            } catch {
+                localStorage.removeItem(storageKey);
+            }
+        }
+
+        setChecklistCompletado(
+            catalogo.checklist.reduce(
+                (acc, item) => ({
+                    ...acc,
+                    [item]: false,
+                }),
+                {}
+            )
+        );
+
+        setCampos(
+            catalogo.camposObligatorios.reduce(
+                (acc, campo) => ({
+                    ...acc,
+                    [campo.label]: "",
+                }),
+                {}
+            )
+        );
+    }, [
+        report,
+        catalogo,
+        storageKey,
+    ]);
+
+    useEffect(() => {
+        if (!id || !report) {
             return;
         }
 
-        if (report.status !== "IN_PROGRESS") {
-            setError(
-                "Solo puedes registrar atención cuando el reporte está en atención."
-            );
-            return;
-        }
+        localStorage.setItem(
+            storageKey,
+            JSON.stringify({
+                checklistCompletado,
+                campos,
+                accionSeleccionada,
+                resultadoSeleccionado,
+            })
+        );
+    }, [
+        id,
+        report,
+        storageKey,
+        checklistCompletado,
+        campos,
+        accionSeleccionada,
+        resultadoSeleccionado,
+    ]);
 
-        if (!canSubmit) {
-            setError(
-                "Completa el checklist, los campos obligatorios, la acción y el resultado técnico."
-            );
-            return;
-        }
+    const toggleChecklist =
+        (item: string) => {
+            setChecklistCompletado((prev) => ({
+                ...prev,
+                [item]: !prev[item],
+            }));
+        };
 
-        try {
-            setSaving(true);
-            setError("");
-            setSuccessMessage("");
+    const validar =
+        (): Record<string, string> => {
+            const nuevosErrores:
+                Record<string, string> = {};
 
-            await TechnicalAttentionService.createAttention({
-                reportId: report.id,
-                technicianId,
-                checklist,
-                fieldValues,
-                actionTaken,
-                technicalResult,
-                observations,
+            catalogo.camposObligatorios.forEach((campo) => {
+                const valor =
+                    campos[campo.label] ?? "";
+
+                if (valor.trim() === "") {
+                    nuevosErrores[campo.label] =
+                        "Este campo es obligatorio.";
+
+                } else if (
+                    campo.minLength &&
+                    valor.trim().length < campo.minLength
+                ) {
+                    nuevosErrores[campo.label] =
+                        `Debe tener al menos ${campo.minLength} caracteres.`;
+                }
             });
 
-            setSuccessMessage(
-                "Atención técnica registrada correctamente."
-            );
+            if (!accionSeleccionada) {
+                nuevosErrores["accion"] =
+                    "Debes seleccionar una acción realizada.";
+            }
 
-            setTimeout(() => {
-                navigate(
-                    `/technician/reports/${report.id}/fieldwork`
+            if (!resultadoSeleccionado) {
+                nuevosErrores["resultado"] =
+                    "Debes seleccionar una evaluación preliminar.";
+            }
+
+            return nuevosErrores;
+        };
+
+    const saveTechnicalAttention =
+        async () => {
+            if (!report) {
+                return;
+            }
+
+            if (!technicianId) {
+                throw new Error(
+                    "No se encontró el técnico en sesión."
                 );
-            }, 1000);
+            }
 
-        } catch (error: any) {
-            setError(
-                error.message ||
-                "No se pudo registrar la atención técnica."
-            );
+            const checklistPayload =
+                catalogo.checklist.map((item) => ({
+                    item,
+                    checked:
+                        Boolean(checklistCompletado[item]),
+                }));
 
-        } finally {
-            setSaving(false);
-        }
-    };
+            const response =
+                await fetch(
+                    `${API_URL}/api/technical-attentions`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body:
+                            JSON.stringify({
+                                reportId:
+                                    report.id,
 
-    const renderField = (
-        field: TemplateField
-    ) => {
-        const value =
-            fieldValues[field.name] || "";
+                                technicianId,
 
-        if (field.type === "textarea") {
-            return (
-                <textarea
-                    value={value}
-                    onChange={(event) =>
-                        handleFieldChange(
-                            field.name,
-                            event.target.value
-                        )
+                                checklist:
+                                    checklistPayload,
+
+                                fieldValues:
+                                    campos,
+
+                                actionTaken:
+                                    accionSeleccionada,
+
+                                technicalResult:
+                                    resultadoSeleccionado,
+
+                                observations:
+                                    campos["Observaciones adicionales"] ||
+                                    undefined,
+                            }),
                     }
-                    placeholder={field.placeholder}
-                    className="
-                        w-full
-                        border
-                        rounded-xl
-                        p-3
-                        bg-white
-                        min-h-[110px]
-                        resize-none
-                    "
-                />
-            );
-        }
+                );
 
-        if (field.type === "select") {
-            return (
-                <select
-                    value={value}
-                    onChange={(event) =>
-                        handleFieldChange(
-                            field.name,
-                            event.target.value
-                        )
+            const data =
+                await response.json()
+                    .catch(() => null);
+
+            if (!response.ok) {
+                throw new Error(
+                    data?.message ||
+                    "No se pudo guardar la atención técnica."
+                );
+            }
+
+            const statusResponse =
+                await fetch(
+                    `${API_URL}/api/reports/${report.id}/status`,
+                    {
+                        method: "PATCH",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body:
+                            JSON.stringify({
+                                status:
+                                    "IN_PROGRESS",
+                            }),
                     }
-                    className="
-                        w-full
-                        border
-                        rounded-xl
-                        p-3
-                        bg-white
-                    "
-                >
-                    <option value="">
-                        Selecciona una opción
-                    </option>
+                );
 
-                    {field.options?.map((option) => (
-                        <option
-                            key={option}
-                            value={option}
-                        >
-                            {option}
-                        </option>
-                    ))}
-                </select>
-            );
-        }
+            const statusData =
+                await statusResponse.json()
+                    .catch(() => null);
 
-        return (
-            <input
-                type={field.type === "number" ? "number" : "text"}
-                value={value}
-                onChange={(event) =>
-                    handleFieldChange(
-                        field.name,
-                        event.target.value
-                    )
-                }
-                placeholder={field.placeholder}
-                className="
-                    w-full
-                    border
-                    rounded-xl
-                    p-3
-                    bg-white
-                "
-            />
-        );
-    };
+            if (!statusResponse.ok) {
+                throw new Error(
+                    statusData?.message ||
+                    "La atención fue guardada, pero no se pudo actualizar el estado."
+                );
+            }
+
+            localStorage.removeItem(storageKey);
+        };
+
+    const guardarYSalir =
+        async () => {
+            if (!report) {
+                return;
+            }
+
+            const nuevosErrores =
+                validar();
+
+            if (Object.keys(nuevosErrores).length > 0) {
+                setErrores(nuevosErrores);
+                return;
+            }
+
+            try {
+                setSaving(true);
+                setErrores({});
+                setErrorMessage("");
+                setSavedMessage("");
+
+                await saveTechnicalAttention();
+
+                setSavedMessage(
+                    "Atención guardada correctamente."
+                );
+
+                setTimeout(() => {
+                    navigate(
+                        `/technician/reports/${report.id}`
+                    );
+                }, 800);
+
+            } catch (error: any) {
+                setErrorMessage(
+                    error.message ||
+                    "No se pudo guardar la atención."
+                );
+
+            } finally {
+                setSaving(false);
+            }
+        };
+
+    const guardarYContinuar =
+        async () => {
+            if (!report) {
+                return;
+            }
+
+            const nuevosErrores =
+                validar();
+
+            if (Object.keys(nuevosErrores).length > 0) {
+                setErrores(nuevosErrores);
+                return;
+            }
+
+            try {
+                setSaving(true);
+                setErrores({});
+                setErrorMessage("");
+                setSavedMessage("");
+
+                await saveTechnicalAttention();
+
+                setSavedMessage(
+                    "Atención guardada correctamente. Continuando a trazabilidad."
+                );
+
+                setTimeout(() => {
+                    navigate(
+                        `/technician/reports/${report.id}/fieldwork`
+                    );
+                }, 800);
+
+            } catch (error: any) {
+                setErrorMessage(
+                    error.message ||
+                    "No se pudo guardar la atención."
+                );
+
+            } finally {
+                setSaving(false);
+            }
+        };
 
     if (loading) {
         return (
@@ -1549,13 +1098,144 @@ export default function TechnicianAttendPage() {
         <div className="
             min-h-screen
             bg-[#F5F7FA]
-            p-6
-            lg:p-8
+            flex
         ">
-            <div className="
-                max-w-7xl
-                mx-auto
-                space-y-8
+            <aside className="
+                w-[260px]
+                min-h-screen
+                bg-[#03152E]
+                text-white
+                p-6
+                flex
+                flex-col
+                justify-between
+                sticky
+                top-0
+            ">
+                <div>
+                    <h1 className="
+                        text-4xl
+                        font-bold
+                        mb-10
+                    ">
+                        reporta
+                        <span className="text-yellow-400">
+                            Ya
+                        </span>
+                    </h1>
+
+                    <p className="
+                        text-white/50
+                        text-xs
+                        uppercase
+                        tracking-wide
+                        mb-3
+                    ">
+                        Trabajo actual
+                    </p>
+
+                    <div className="
+                        bg-white/10
+                        rounded-2xl
+                        p-4
+                        space-y-2
+                        mb-8
+                    ">
+                        <p className="
+                            font-semibold
+                            text-lg
+                        ">
+                            {report.problemType}
+                        </p>
+
+                        <p className="
+                            text-white/60
+                            text-sm
+                        ">
+                            {report.address || "Ubicación no disponible"}
+                        </p>
+
+                        <span className="
+                            inline-block
+                            bg-blue-400
+                            text-black
+                            text-xs
+                            font-bold
+                            px-3
+                            py-1
+                            rounded-full
+                        ">
+                            {statusLabels[report.status] || report.status}
+                        </span>
+                    </div>
+
+                    <p className="
+                        text-white/50
+                        text-xs
+                        uppercase
+                        tracking-wide
+                        mb-4
+                    ">
+                        Progreso de atención
+                    </p>
+
+                    <div className="space-y-4">
+                        {pasosSidebar.map((paso, index) => (
+                            <div
+                                key={paso}
+                                className="
+                                    flex
+                                    items-center
+                                    gap-3
+                                "
+                            >
+                                <div className="
+                                    w-7
+                                    h-7
+                                    rounded-full
+                                    bg-white/20
+                                    flex
+                                    items-center
+                                    justify-center
+                                    text-xs
+                                    font-bold
+                                ">
+                                    {index + 1}
+                                </div>
+
+                                <span className="
+                                    text-white/70
+                                    text-sm
+                                ">
+                                    {paso}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="
+                        mt-8
+                        bg-white/5
+                        border
+                        border-white/10
+                        rounded-2xl
+                        p-4
+                    ">
+                        <p className="
+                            text-white/50
+                            text-xs
+                            leading-relaxed
+                        ">
+                            Este registro es preliminar. El checklist es una guía operativa y no es obligatorio marcar todos los puntos.
+                        </p>
+                    </div>
+                </div>
+            </aside>
+
+            <main className="
+                flex-1
+                p-10
+                overflow-y-auto
             ">
                 <button
                     onClick={() =>
@@ -1564,494 +1244,667 @@ export default function TechnicianAttendPage() {
                         )
                     }
                     className="
-                        text-blue-700
+                        text-blue-600
                         font-semibold
+                        mb-8
                         hover:underline
+                        block
                     "
                 >
-                    ← Volver al detalle
+                    ← Volver al detalle del reporte
                 </button>
 
-                <section className="
-                    bg-white
-                    border
-                    rounded-3xl
-                    shadow-sm
-                    p-6
-                    lg:p-8
-                    space-y-8
+                <h2 className="
+                    text-5xl
+                    font-bold
+                    mb-2
+                    text-[#03152E]
                 ">
+                    Atender reporte
+                </h2>
+
+                <p className="
+                    text-gray-500
+                    text-xl
+                    mb-10
+                ">
+                    Documenta lo que encontraste y realizaste en el lugar. Este registro es preliminar y continuará en la trazabilidad de campo.
+                </p>
+
+                {errorMessage && (
                     <div className="
-                        grid
-                        grid-cols-1
-                        lg:grid-cols-[1fr_360px]
-                        gap-8
-                        items-start
+                        bg-red-50
+                        border
+                        border-red-200
+                        text-red-700
+                        rounded-2xl
+                        px-6
+                        py-4
+                        mb-6
+                        font-semibold
                     ">
-                        <div>
-                            <p className="
-                                text-green-700
-                                font-semibold
-                            ">
-                                US17 - Atención técnica
-                            </p>
+                        {errorMessage}
+                    </div>
+                )}
 
-                            <h1 className="
-                                text-4xl
-                                lg:text-5xl
-                                font-bold
-                                text-[#03152E]
-                                mt-2
-                                leading-tight
-                            ">
-                                {template.title}
-                            </h1>
+                {savedMessage && (
+                    <div className="
+                        bg-green-50
+                        border
+                        border-green-200
+                        text-green-700
+                        rounded-2xl
+                        px-6
+                        py-4
+                        mb-6
+                        font-semibold
+                    ">
+                        ✓ {savedMessage}
+                    </div>
+                )}
 
-                            <p className="
-                                text-gray-500
-                                mt-4
-                                max-w-3xl
-                                text-lg
-                                leading-relaxed
-                            ">
-                                {template.description}
-                            </p>
-                        </div>
-
+                <div className="space-y-6">
+                    <div className="
+                        bg-white
+                        rounded-3xl
+                        border
+                        shadow-sm
+                        p-8
+                    ">
                         <div className="
-                            bg-blue-50
-                            border
-                            border-blue-100
-                            rounded-2xl
-                            p-5
-                            space-y-3
+                            flex
+                            items-start
+                            justify-between
+                            gap-4
+                            mb-4
                         ">
-                            <h2 className="
-                                font-bold
-                                text-[#03152E]
-                                text-lg
+                            <div>
+                                <h3 className="
+                                    text-3xl
+                                    font-bold
+                                    text-[#03152E]
+                                ">
+                                    {report.title || report.problemType}
+                                </h3>
+
+                                <p className="
+                                    text-gray-500
+                                    mt-1
+                                ">
+                                    {report.address || "Ubicación no disponible"}
+                                </p>
+                            </div>
+
+                            <span className="
+                                bg-blue-100
+                                text-blue-700
+                                px-4
+                                py-2
+                                rounded-full
+                                font-semibold
+                                whitespace-nowrap
                             ">
-                                Reporte atendido
-                            </h2>
-
-                            <p>
-                                <strong>Título:</strong>{" "}
-                                {report.title}
-                            </p>
-
-                            <p>
-                                <strong>Tipo:</strong>{" "}
-                                {report.problemType}
-                            </p>
-
-                            <p>
-                                <strong>Categoría operativa:</strong>{" "}
-                                {template.categoryLabel}
-                            </p>
-
-                            <p>
-                                <strong>Estado:</strong>{" "}
-                                {
-                                    statusLabels[report.status] ||
-                                    report.status
-                                }
-                            </p>
-
-                            <p>
-                                <strong>Prioridad:</strong>{" "}
-                                {report.priority || "No definida"}
-                            </p>
-
-                            <p>
-                                <strong>Municipalidad:</strong>{" "}
-                                {
-                                    report.municipality?.name ||
-                                    "No definida"
-                                }
-                            </p>
+                                {statusLabels[report.status] || report.status}
+                            </span>
                         </div>
+
+                        <p className="
+                            text-gray-600
+                            text-lg
+                            leading-relaxed
+                        ">
+                            {report.description}
+                        </p>
                     </div>
 
                     <div className="
-                        grid
-                        grid-cols-1
-                        lg:grid-cols-[340px_1fr]
-                        gap-8
+                        bg-white
+                        rounded-3xl
+                        border
+                        shadow-sm
+                        p-8
                     ">
-                        <aside className="
-                            space-y-6
+                        <div className="
+                            flex
+                            items-center
+                            gap-3
+                            mb-6
                         ">
                             <div className="
-                                bg-gray-50
-                                border
-                                rounded-2xl
-                                p-5
+                                w-8
+                                h-8
+                                rounded-full
+                                bg-[#03152E]
+                                text-white
+                                flex
+                                items-center
+                                justify-center
+                                font-bold
+                                text-sm
                             ">
-                                <h2 className="
-                                    text-xl
-                                    font-bold
-                                    text-[#03152E]
-                                    mb-3
-                                ">
-                                    Resumen del reporte
-                                </h2>
-
-                                <p className="
-                                    text-gray-600
-                                    leading-relaxed
-                                ">
-                                    {report.description}
-                                </p>
-
-                                {report.address && (
-                                    <p className="
-                                        text-sm
-                                        text-gray-500
-                                        mt-4
-                                    ">
-                                        <strong>Dirección:</strong>{" "}
-                                        {report.address}
-                                    </p>
-                                )}
+                                1
                             </div>
 
-                            <div className="
-                                bg-gray-50
-                                border
-                                rounded-2xl
-                                p-5
+                            <h3 className="
+                                text-2xl
+                                font-bold
+                                text-[#03152E]
                             ">
-                                <h2 className="
-                                    text-xl
-                                    font-bold
-                                    text-[#03152E]
-                                    mb-3
-                                ">
-                                    Evidencia inicial
-                                </h2>
+                                Verificación en sitio
+                            </h3>
+                        </div>
 
-                                <img
-                                    src={
-                                        report.evidences?.[0]?.imageUrl ||
-                                        "https://placehold.co/600x400?text=Sin+evidencia"
-                                    }
-                                    alt={report.problemType}
-                                    className="
-                                        w-full
-                                        h-[220px]
-                                        object-cover
-                                        rounded-2xl
-                                        border
-                                    "
-                                />
-                            </div>
-                        </aside>
+                        <p className="
+                            text-sm
+                            text-gray-500
+                            mb-4
+                        ">
+                            Marca solo lo que pudiste verificar. No es obligatorio completar todos los puntos.
+                        </p>
 
-                        <form
-                            onSubmit={handleSubmit}
-                            className="
-                                grid
-                                grid-cols-1
-                                xl:grid-cols-2
-                                gap-8
-                            "
-                        >
-                            <section className="
-                                space-y-6
-                            ">
-                                <div className="
-                                    bg-gray-50
-                                    border
-                                    rounded-2xl
-                                    p-6
-                                ">
-                                    <h2 className="
-                                        text-2xl
-                                        font-bold
-                                        text-[#03152E]
-                                        mb-4
-                                    ">
-                                        Checklist operativo
-                                    </h2>
-
-                                    <div className="
-                                        space-y-3
-                                    ">
-                                        {template.checklist.map((item) => (
-                                            <label
-                                                key={item}
-                                                className="
-                                                    flex
-                                                    items-start
-                                                    gap-3
-                                                    bg-white
-                                                    border
-                                                    rounded-xl
-                                                    p-4
-                                                    cursor-pointer
-                                                    hover:bg-gray-50
-                                                "
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={
-                                                        checklist[item] ||
-                                                        false
-                                                    }
-                                                    onChange={() =>
-                                                        handleChecklistChange(
-                                                            item
-                                                        )
-                                                    }
-                                                    className="
-                                                        mt-1
-                                                    "
-                                                />
-
-                                                <span className="
-                                                    text-gray-700
-                                                ">
-                                                    {item}
-                                                </span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="
-                                    bg-gray-50
-                                    border
-                                    rounded-2xl
-                                    p-6
-                                ">
-                                    <h2 className="
-                                        text-2xl
-                                        font-bold
-                                        text-[#03152E]
-                                        mb-4
-                                    ">
-                                        Acción técnica
-                                    </h2>
-
-                                    <label className="
-                                        block
-                                        text-sm
-                                        font-semibold
-                                        text-gray-700
-                                        mb-2
-                                    ">
-                                        Acción realizada
-                                    </label>
-
-                                    <select
-                                        value={actionTaken}
-                                        onChange={(event) =>
-                                            setActionTaken(
-                                                event.target.value
-                                            )
-                                        }
-                                        className="
-                                            w-full
-                                            border
-                                            rounded-xl
-                                            p-3
-                                            bg-white
-                                        "
-                                    >
-                                        <option value="">
-                                            Selecciona una acción
-                                        </option>
-
-                                        {template.actions.map((action) => (
-                                            <option
-                                                key={action}
-                                                value={action}
-                                            >
-                                                {action}
-                                            </option>
-                                        ))}
-                                    </select>
-
-                                    <label className="
-                                        block
-                                        text-sm
-                                        font-semibold
-                                        text-gray-700
-                                        mt-5
-                                        mb-2
-                                    ">
-                                        Resultado técnico
-                                    </label>
-
-                                    <select
-                                        value={technicalResult}
-                                        onChange={(event) =>
-                                            setTechnicalResult(
-                                                event.target.value
-                                            )
-                                        }
-                                        className="
-                                            w-full
-                                            border
-                                            rounded-xl
-                                            p-3
-                                            bg-white
-                                        "
-                                    >
-                                        <option value="">
-                                            Selecciona un resultado
-                                        </option>
-
-                                        {template.results.map((result) => (
-                                            <option
-                                                key={result}
-                                                value={result}
-                                            >
-                                                {result}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </section>
-
-                            <section className="
-                                space-y-6
-                            ">
-                                <div className="
-                                    bg-gray-50
-                                    border
-                                    rounded-2xl
-                                    p-6
-                                ">
-                                    <h2 className="
-                                        text-2xl
-                                        font-bold
-                                        text-[#03152E]
-                                        mb-4
-                                    ">
-                                        Datos requeridos
-                                    </h2>
-
-                                    <div className="
-                                        space-y-4
-                                    ">
-                                        {template.fields.map((field) => (
-                                            <div key={field.name}>
-                                                <label className="
-                                                    block
-                                                    text-sm
-                                                    font-semibold
-                                                    text-gray-700
-                                                    mb-2
-                                                ">
-                                                    {field.label}
-                                                </label>
-
-                                                {renderField(field)}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="
-                                    bg-gray-50
-                                    border
-                                    rounded-2xl
-                                    p-6
-                                ">
-                                    <h2 className="
-                                        text-2xl
-                                        font-bold
-                                        text-[#03152E]
-                                        mb-4
-                                    ">
-                                        Observaciones
-                                    </h2>
-
-                                    <textarea
-                                        value={observations}
-                                        onChange={(event) =>
-                                            setObservations(
-                                                event.target.value
-                                            )
-                                        }
-                                        placeholder="Agrega observaciones adicionales sobre la atención realizada."
-                                        className="
-                                            w-full
-                                            border
-                                            rounded-xl
-                                            p-3
-                                            bg-white
-                                            min-h-[150px]
-                                            resize-none
-                                        "
-                                    />
-                                </div>
-
-                                {error && (
-                                    <div className="
-                                        bg-red-50
-                                        border
-                                        border-red-200
-                                        text-red-700
-                                        rounded-2xl
-                                        p-4
-                                        font-semibold
-                                    ">
-                                        {error}
-                                    </div>
-                                )}
-
-                                {successMessage && (
-                                    <div className="
-                                        bg-green-50
-                                        border
-                                        border-green-200
-                                        text-green-700
-                                        rounded-2xl
-                                        p-4
-                                        font-semibold
-                                    ">
-                                        {successMessage}
-                                    </div>
-                                )}
-
+                        <div className="space-y-3">
+                            {catalogo.checklist.map((item) => (
                                 <button
-                                    type="submit"
-                                    disabled={!canSubmit}
+                                    key={item}
+                                    type="button"
+                                    onClick={() =>
+                                        toggleChecklist(item)
+                                    }
                                     className="
+                                        flex
+                                        items-center
+                                        gap-3
+                                        cursor-pointer
                                         w-full
-                                        bg-green-700
-                                        text-white
-                                        font-bold
-                                        text-lg
-                                        rounded-2xl
-                                        py-4
-                                        hover:bg-green-800
-                                        transition
-                                        disabled:bg-gray-300
-                                        disabled:cursor-not-allowed
+                                        text-left
+                                        group
                                     "
                                 >
-                                    {
-                                        saving
-                                            ? "Guardando atención..."
-                                            : "Registrar atención técnica"
-                                    }
-                                </button>
+                                    <span className={`
+                                        w-6
+                                        h-6
+                                        rounded-lg
+                                        border-2
+                                        flex
+                                        items-center
+                                        justify-center
+                                        transition
+                                        flex-shrink-0
+                                        ${
+                                            checklistCompletado[item]
+                                                ? "bg-[#03152E] border-[#03152E]"
+                                                : "border-gray-300 group-hover:border-gray-400"
+                                        }
+                                    `}>
+                                        {checklistCompletado[item] && (
+                                            <span className="
+                                                text-white
+                                                text-xs
+                                                font-bold
+                                            ">
+                                                ✓
+                                            </span>
+                                        )}
+                                    </span>
 
-                                <p className="
-                                    text-sm
-                                    text-gray-500
-                                    leading-relaxed
-                                ">
-                                    Esta acción registra la atención operativa del reporte. El cierre final se realiza en la siguiente historia.
-                                </p>
-                            </section>
-                        </form>
+                                    <span className={
+                                        checklistCompletado[item]
+                                            ? "line-through text-gray-400"
+                                            : "text-gray-700"
+                                    }>
+                                        {item}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                </section>
-            </div>
+
+                    <div className="
+                        bg-white
+                        rounded-3xl
+                        border
+                        shadow-sm
+                        p-8
+                    ">
+                        <div className="
+                            flex
+                            items-center
+                            gap-3
+                            mb-6
+                        ">
+                            <div className="
+                                w-8
+                                h-8
+                                rounded-full
+                                bg-[#03152E]
+                                text-white
+                                flex
+                                items-center
+                                justify-center
+                                font-bold
+                                text-sm
+                            ">
+                                2
+                            </div>
+
+                            <h3 className="
+                                text-2xl
+                                font-bold
+                                text-[#03152E]
+                            ">
+                                Datos requeridos
+                            </h3>
+                        </div>
+
+                        <p className="
+                            text-sm
+                            text-gray-500
+                            mb-4
+                        ">
+                            Registra los datos mínimos encontrados en campo para este tipo de problema.
+                        </p>
+
+                        <div className="
+                            grid
+                            grid-cols-1
+                            sm:grid-cols-2
+                            xl:grid-cols-4
+                            gap-4
+                        ">
+                            {catalogo.camposObligatorios.map((campo) => (
+                                <div
+                                    key={campo.label}
+                                    className={
+                                        campo.label === campoExtra.label
+                                            ? "sm:col-span-2"
+                                            : ""
+                                    }
+                                >
+                                    <label className="
+                                        block
+                                        text-sm
+                                        font-medium
+                                        text-gray-700
+                                        mb-1
+                                    ">
+                                        {campo.label} *
+                                    </label>
+
+                                    <p className="
+                                        text-xs
+                                        text-gray-400
+                                        mb-2
+                                    ">
+                                        {campo.descripcion}
+                                    </p>
+
+                                    <input
+                                        type="text"
+                                        value={
+                                            campos[campo.label] || ""
+                                        }
+                                        onChange={(event) => {
+                                            setCampos((prev) => ({
+                                                ...prev,
+                                                [campo.label]:
+                                                    event.target.value,
+                                            }));
+
+                                            if (errores[campo.label]) {
+                                                setErrores((prev) => {
+                                                    const err = {
+                                                        ...prev,
+                                                    };
+
+                                                    delete err[campo.label];
+
+                                                    return err;
+                                                });
+                                            }
+                                        }}
+                                        placeholder={campo.placeholder}
+                                        className={`
+                                            w-full
+                                            border
+                                            rounded-xl
+                                            px-4
+                                            py-3
+                                            outline-none
+                                            focus:ring-2
+                                            text-gray-700
+                                            ${
+                                                errores[campo.label]
+                                                    ? "border-red-400 focus:ring-red-300"
+                                                    : "focus:ring-[#03152E]"
+                                            }
+                                        `}
+                                    />
+
+                                    {errores[campo.label] && (
+                                        <p className="
+                                            text-red-500
+                                            text-xs
+                                            mt-1
+                                        ">
+                                            {errores[campo.label]}
+                                        </p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="
+                        bg-white
+                        rounded-3xl
+                        border
+                        shadow-sm
+                        p-8
+                    ">
+                        <div className="
+                            flex
+                            items-center
+                            gap-3
+                            mb-6
+                        ">
+                            <div className="
+                                w-8
+                                h-8
+                                rounded-full
+                                bg-[#03152E]
+                                text-white
+                                flex
+                                items-center
+                                justify-center
+                                font-bold
+                                text-sm
+                            ">
+                                3
+                            </div>
+
+                            <h3 className="
+                                text-2xl
+                                font-bold
+                                text-[#03152E]
+                            ">
+                                Acción técnica realizada
+                            </h3>
+                        </div>
+
+                        <p className="
+                            text-sm
+                            text-gray-500
+                            mb-4
+                        ">
+                            ¿Qué intervención realizaste o gestionaste en el lugar?
+                        </p>
+
+                        <div className="
+                            grid
+                            grid-cols-1
+                            md:grid-cols-3
+                            gap-3
+                        ">
+                            {catalogo.acciones.map((accion) => (
+                                <button
+                                    key={accion}
+                                    type="button"
+                                    onClick={() => {
+                                        setAccionSeleccionada(accion);
+
+                                        if (errores["accion"]) {
+                                            setErrores((prev) => {
+                                                const err = {
+                                                    ...prev,
+                                                };
+
+                                                delete err["accion"];
+
+                                                return err;
+                                            });
+                                        }
+                                    }}
+                                    className={`
+                                        p-4
+                                        rounded-2xl
+                                        border-2
+                                        text-left
+                                        text-sm
+                                        font-medium
+                                        transition
+                                        ${
+                                            accionSeleccionada === accion
+                                                ? "border-[#03152E] bg-[#03152E] text-white"
+                                                : errores["accion"]
+                                                    ? "border-red-300 text-gray-700"
+                                                    : "border-gray-200 hover:border-gray-400 text-gray-700"
+                                        }
+                                    `}
+                                >
+                                    {accion}
+                                </button>
+                            ))}
+                        </div>
+
+                        {errores["accion"] && (
+                            <p className="
+                                text-red-500
+                                text-xs
+                                mt-3
+                            ">
+                                {errores["accion"]}
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="
+                        bg-white
+                        rounded-3xl
+                        border
+                        shadow-sm
+                        p-8
+                    ">
+                        <div className="
+                            flex
+                            items-center
+                            gap-3
+                            mb-6
+                        ">
+                            <div className="
+                                w-8
+                                h-8
+                                rounded-full
+                                bg-[#03152E]
+                                text-white
+                                flex
+                                items-center
+                                justify-center
+                                font-bold
+                                text-sm
+                            ">
+                                4
+                            </div>
+
+                            <h3 className="
+                                text-2xl
+                                font-bold
+                                text-[#03152E]
+                            ">
+                                Evaluación preliminar del resultado
+                            </h3>
+                        </div>
+
+                        <p className="
+                            text-sm
+                            text-gray-500
+                            mb-4
+                        ">
+                            Indica cómo quedó el caso. Esta evaluación será complementada en el cierre formal.
+                        </p>
+
+                        <div className="space-y-2">
+                            {resultadosTecnicos.map((resultado) => (
+                                <button
+                                    key={resultado.valor}
+                                    type="button"
+                                    onClick={() => {
+                                        setResultadoSeleccionado(
+                                            resultado.valor
+                                        );
+
+                                        if (errores["resultado"]) {
+                                            setErrores((prev) => {
+                                                const err = {
+                                                    ...prev,
+                                                };
+
+                                                delete err["resultado"];
+
+                                                return err;
+                                            });
+                                        }
+                                    }}
+                                    className={`
+                                        flex
+                                        items-center
+                                        gap-3
+                                        cursor-pointer
+                                        w-full
+                                        text-left
+                                        p-3
+                                        rounded-xl
+                                        transition
+                                        ${
+                                            resultadoSeleccionado === resultado.valor
+                                                ? "bg-[#03152E]/5"
+                                                : "hover:bg-gray-50"
+                                        }
+                                    `}
+                                >
+                                    <span className={`
+                                        w-6
+                                        h-6
+                                        rounded-full
+                                        border-2
+                                        flex
+                                        items-center
+                                        justify-center
+                                        transition
+                                        flex-shrink-0
+                                        ${
+                                            resultadoSeleccionado === resultado.valor
+                                                ? "border-[#03152E] bg-[#03152E]"
+                                                : errores["resultado"]
+                                                    ? "border-red-300"
+                                                    : "border-gray-300"
+                                        }
+                                    `}>
+                                        {resultadoSeleccionado === resultado.valor && (
+                                            <span className="
+                                                w-2.5
+                                                h-2.5
+                                                rounded-full
+                                                bg-white
+                                                block
+                                            " />
+                                        )}
+                                    </span>
+
+                                    <span className={
+                                        resultadoSeleccionado === resultado.valor
+                                            ? "text-[#03152E] font-semibold"
+                                            : "text-gray-700"
+                                    }>
+                                        {resultado.etiqueta}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+
+                        {errores["resultado"] && (
+                            <p className="
+                                text-red-500
+                                text-xs
+                                mt-3
+                            ">
+                                {errores["resultado"]}
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="
+                        pb-10
+                        space-y-3
+                    ">
+                        <div className="
+                            flex
+                            flex-col
+                            md:flex-row
+                            gap-4
+                        ">
+                            <button
+                                onClick={guardarYSalir}
+                                disabled={saving}
+                                className="
+                                    flex-1
+                                    rounded-2xl
+                                    p-5
+                                    text-lg
+                                    font-semibold
+                                    transition
+                                    border-2
+                                    border-[#03152E]
+                                    text-[#03152E]
+                                    hover:bg-[#03152E]
+                                    hover:text-white
+                                    disabled:border-gray-200
+                                    disabled:text-gray-400
+                                    disabled:cursor-not-allowed
+                                "
+                            >
+                                {
+                                    saving
+                                        ? "Guardando..."
+                                        : "Guardar y salir"
+                                }
+                            </button>
+
+                            <button
+                                onClick={guardarYContinuar}
+                                disabled={saving}
+                                className="
+                                    flex-1
+                                    rounded-2xl
+                                    p-5
+                                    text-lg
+                                    font-semibold
+                                    transition
+                                    bg-[#03152E]
+                                    hover:bg-[#052444]
+                                    text-white
+                                    disabled:bg-gray-200
+                                    disabled:text-gray-400
+                                    disabled:cursor-not-allowed
+                                "
+                            >
+                                {
+                                    saving
+                                        ? "Guardando..."
+                                        : "Guardar y continuar a trazabilidad →"
+                                }
+                            </button>
+                        </div>
+
+                        <p className="
+                            text-center
+                            text-gray-400
+                            text-sm
+                        ">
+                            Este registro es preliminar. El cierre formal se realizará en US19.
+                        </p>
+                    </div>
+                </div>
+            </main>
         </div>
     );
 }

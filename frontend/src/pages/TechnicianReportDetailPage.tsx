@@ -12,6 +12,12 @@ import {
     statusLabels,
 } from "../utils/reportLabels";
 
+import {
+    formatTargetDate,
+    getPriorityLabel,
+    getSlaViewState,
+} from "../utils/sla.utils";
+
 const API_URL =
     import.meta.env.VITE_API_URL ||
     "http://localhost:3000";
@@ -44,6 +50,7 @@ type Report = {
     description: string;
     status: string;
     priority?: string;
+    targetDate?: string | null;
     address?: string;
     latitude?: number;
     longitude?: number;
@@ -245,6 +252,12 @@ export default function TechnicianReportDetailPage() {
     const latestAttention =
         report.technicalAttentions?.[0];
 
+    const slaState =
+        getSlaViewState(
+            report.targetDate,
+            report.status
+        );
+
     return (
         <div className="
             min-h-screen
@@ -370,7 +383,39 @@ export default function TechnicianReportDetailPage() {
 
                             <p>
                                 <strong>Prioridad:</strong>{" "}
-                                {report.priority || "No definida"}
+                                {getPriorityLabel(report.priority)}
+                            </p>
+
+                            <p>
+                                <strong>Fecha objetivo:</strong>{" "}
+                                {formatTargetDate(report.targetDate)}
+                            </p>
+
+                            <div className="
+                                flex
+                                items-center
+                                gap-2
+                                flex-wrap
+                            ">
+                                <strong>Estado SLA:</strong>
+
+                                <span className={`
+                                    px-3
+                                    py-1
+                                    rounded-full
+                                    text-xs
+                                    font-bold
+                                    ${slaState.className}
+                                `}>
+                                    {slaState.label}
+                                </span>
+                            </div>
+
+                            <p className="
+                                text-sm
+                                text-gray-500
+                            ">
+                                {slaState.description}
                             </p>
 
                             <p>
