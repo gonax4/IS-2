@@ -5,47 +5,41 @@ const closureReasonService =
   new ClosureReasonService();
 
 export class ClosureReasonController {
-
   static async getAll(
     req: Request,
     res: Response
   ) {
     try {
-
-      const closureReasons =
+      const reasons =
         await closureReasonService.getAll();
 
-      res.json(closureReasons);
+      return res.json(reasons);
 
     } catch (error: any) {
-
-      res.status(400).json({
-        message: error.message,
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al obtener motivos de cierre.",
       });
-
     }
   }
 
-  static async getById(
+  static async getActive(
     req: Request,
     res: Response
   ) {
     try {
+      const reasons =
+        await closureReasonService.getActive();
 
-      const id =
-        req.params.id as string;
-
-      const closureReason =
-        await closureReasonService.getById(id);
-
-      res.json(closureReason);
+      return res.json(reasons);
 
     } catch (error: any) {
-
-      res.status(400).json({
-        message: error.message,
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al obtener motivos activos.",
       });
-
     }
   }
 
@@ -54,20 +48,20 @@ export class ClosureReasonController {
     res: Response
   ) {
     try {
+      const reason =
+        await closureReasonService.create({
+          name: req.body.name,
+          description: req.body.description,
+        });
 
-      const closureReason =
-        await closureReasonService.create(
-          req.body
-        );
-
-      res.status(201).json(closureReason);
+      return res.status(201).json(reason);
 
     } catch (error: any) {
-
-      res.status(400).json({
-        message: error.message,
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al crear motivo de cierre.",
       });
-
     }
   }
 
@@ -76,50 +70,66 @@ export class ClosureReasonController {
     res: Response
   ) {
     try {
-
-      const id =
-        req.params.id as string;
-
-      const closureReason =
+      const reason =
         await closureReasonService.update(
-          id,
-          req.body
+          String(req.params.id),
+          {
+            name: req.body.name,
+            description: req.body.description,
+            active: req.body.active,
+          }
         );
 
-      res.json(closureReason);
+      return res.json(reason);
 
     } catch (error: any) {
-
-      res.status(400).json({
-        message: error.message,
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al actualizar motivo de cierre.",
       });
-
     }
   }
 
-  static async delete(
+  static async deactivate(
     req: Request,
     res: Response
   ) {
     try {
+      const reason =
+        await closureReasonService.deactivate(
+          String(req.params.id)
+        );
 
-      const id =
-        req.params.id as string;
-
-      await closureReasonService.delete(id);
-
-      res.json({
-        message:
-          "Motivo de cierre eliminado correctamente",
-      });
+      return res.json(reason);
 
     } catch (error: any) {
-
-      res.status(400).json({
-        message: error.message,
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al desactivar motivo de cierre.",
       });
-
     }
   }
 
+  static async activate(
+    req: Request,
+    res: Response
+  ) {
+    try {
+      const reason =
+        await closureReasonService.activate(
+          String(req.params.id)
+        );
+
+      return res.json(reason);
+
+    } catch (error: any) {
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al activar motivo de cierre.",
+      });
+    }
+  }
 }

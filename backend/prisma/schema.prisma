@@ -156,6 +156,7 @@ model Category {
   id          String  @id @default(uuid())
   name        String  @unique
   description String?
+  active      Boolean @default(true)
 
   problemTypes ProblemType[]
   reports      Report[]
@@ -168,6 +169,7 @@ model ProblemType {
   id          String  @id @default(uuid())
   name        String
   description String?
+  active      Boolean @default(true)
 
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
@@ -182,6 +184,7 @@ model ClosureReason {
   id          String  @id @default(uuid())
   name        String  @unique
   description String?
+  active      Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

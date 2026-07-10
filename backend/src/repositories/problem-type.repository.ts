@@ -1,8 +1,7 @@
 import { prisma } from "../config/prisma";
 
 export class ProblemTypeRepository {
-
-  async getAll() {
+  async findAll() {
     return await prisma.problemType.findMany({
       include: {
         category: true,
@@ -13,25 +12,19 @@ export class ProblemTypeRepository {
     });
   }
 
-  async getById(id: string) {
-    return await prisma.problemType.findUnique({
+  async findActive() {
+    return await prisma.problemType.findMany({
       where: {
-        id,
+        active: true,
+        category: {
+          active: true,
+        },
       },
       include: {
         category: true,
       },
-    });
-  }
-
-  async getByNameAndCategory(
-    name: string,
-    categoryId: string
-  ) {
-    return await prisma.problemType.findFirst({
-      where: {
-        name,
-        categoryId,
+      orderBy: {
+        name: "asc",
       },
     });
   }
@@ -42,7 +35,15 @@ export class ProblemTypeRepository {
     categoryId: string;
   }) {
     return await prisma.problemType.create({
-      data,
+      data: {
+        name: data.name,
+        description: data.description,
+        categoryId: data.categoryId,
+        active: true,
+      },
+      include: {
+        category: true,
+      },
     });
   }
 
@@ -52,6 +53,7 @@ export class ProblemTypeRepository {
       name?: string;
       description?: string;
       categoryId?: string;
+      active?: boolean;
     }
   ) {
     return await prisma.problemType.update({
@@ -59,13 +61,36 @@ export class ProblemTypeRepository {
         id,
       },
       data,
+      include: {
+        category: true,
+      },
     });
   }
 
-  async delete(id: string) {
-    return await prisma.problemType.delete({
+  async deactivate(id: string) {
+    return await prisma.problemType.update({
       where: {
         id,
+      },
+      data: {
+        active: false,
+      },
+      include: {
+        category: true,
+      },
+    });
+  }
+
+  async activate(id: string) {
+    return await prisma.problemType.update({
+      where: {
+        id,
+      },
+      data: {
+        active: true,
+      },
+      include: {
+        category: true,
       },
     });
   }

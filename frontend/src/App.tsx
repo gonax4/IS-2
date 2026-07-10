@@ -64,6 +64,9 @@ import TechnicianClosurePage
 import OperatorMonitoringPage
   from "./pages/OperatorMonitoringPage";
 
+import OperatorCatalogPage 
+  from "./pages/OperatorCatalogPage";
+
 function getDashboardByRole(
   role: string | null
 ) {
@@ -275,6 +278,15 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={["TECHNICIAN"]}>
               <TechnicianClosurePage />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/operator/catalog"
+          element={
+            <ProtectedRoute allowedRoles={["OPERATOR"]}>
+              <OperatorCatalogPage />
             </ProtectedRoute>
           }
         />

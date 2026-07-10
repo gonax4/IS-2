@@ -19,6 +19,10 @@ export type ReportFormValues = {
   images: File[];
 
   imageUrls: string[];
+
+  categoryId?: string;
+  
+  problemTypeId?: string;
 };
 
 export type CreateReportDTO = {

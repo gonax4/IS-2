@@ -5,46 +5,41 @@ const categoryService =
   new CategoryService();
 
 export class CategoryController {
-
   static async getAll(
     req: Request,
     res: Response
   ) {
     try {
-
       const categories =
         await categoryService.getAll();
 
-      res.json(categories);
+      return res.json(categories);
 
     } catch (error: any) {
-
-      res.status(400).json({
-        message: error.message,
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al obtener categorías.",
       });
-
     }
   }
 
-  static async getById(
+  static async getActive(
     req: Request,
     res: Response
   ) {
     try {
+      const categories =
+        await categoryService.getActive();
 
-      const category =
-        await categoryService.getById(
-          req.params.id as string
-        );
-
-      res.json(category);
+      return res.json(categories);
 
     } catch (error: any) {
-
-      res.status(400).json({
-        message: error.message,
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al obtener categorías activas.",
       });
-
     }
   }
 
@@ -53,20 +48,20 @@ export class CategoryController {
     res: Response
   ) {
     try {
-
       const category =
-        await categoryService.create(
-          req.body
-        );
+        await categoryService.create({
+          name: req.body.name,
+          description: req.body.description,
+        });
 
-      res.status(201).json(category);
+      return res.status(201).json(category);
 
     } catch (error: any) {
-
-      res.status(400).json({
-        message: error.message,
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al crear categoría.",
       });
-
     }
   }
 
@@ -75,46 +70,66 @@ export class CategoryController {
     res: Response
   ) {
     try {
-
       const category =
         await categoryService.update(
-          req.params.id as string,
-          req.body
+          String(req.params.id),
+          {
+            name: req.body.name,
+            description: req.body.description,
+            active: req.body.active,
+          }
         );
 
-      res.json(category);
+      return res.json(category);
 
     } catch (error: any) {
-
-      res.status(400).json({
-        message: error.message,
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al actualizar categoría.",
       });
-
     }
   }
 
-  static async delete(
+  static async deactivate(
     req: Request,
     res: Response
   ) {
     try {
+      const category =
+        await categoryService.deactivate(
+          String(req.params.id)
+        );
 
-      await categoryService.delete(
-        req.params.id as string
-      );
-
-      res.json({
-        message:
-          "Categoría eliminada correctamente",
-      });
+      return res.json(category);
 
     } catch (error: any) {
-
-      res.status(400).json({
-        message: error.message,
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al desactivar categoría.",
       });
-
     }
   }
 
+  static async activate(
+    req: Request,
+    res: Response
+  ) {
+    try {
+      const category =
+        await categoryService.activate(
+          String(req.params.id)
+        );
+
+      return res.json(category);
+
+    } catch (error: any) {
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al activar categoría.",
+      });
+    }
+  }
 }

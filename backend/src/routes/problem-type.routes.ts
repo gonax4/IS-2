@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { ProblemTypeController } from "../controllers/problem-type.controller";
 
-const router = Router();
+const router =
+  Router();
 
 router.get(
   "/",
@@ -9,8 +10,8 @@ router.get(
 );
 
 router.get(
-  "/:id",
-  ProblemTypeController.getById
+  "/active",
+  ProblemTypeController.getActive
 );
 
 router.post(
@@ -18,14 +19,19 @@ router.post(
   ProblemTypeController.create
 );
 
-router.put(
+router.patch(
   "/:id",
   ProblemTypeController.update
 );
 
-router.delete(
-  "/:id",
-  ProblemTypeController.delete
+router.patch(
+  "/:id/deactivate",
+  ProblemTypeController.deactivate
+);
+
+router.patch(
+  "/:id/activate",
+  ProblemTypeController.activate
 );
 
 export default router;

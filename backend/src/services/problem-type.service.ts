@@ -1,151 +1,63 @@
 import { ProblemTypeRepository } from "../repositories/problem-type.repository";
-import { CategoryRepository } from "../repositories/category.repository";
+
+const problemTypeRepository =
+  new ProblemTypeRepository();
 
 export class ProblemTypeService {
+  async getAll() {
+    return await problemTypeRepository.findAll();
+  }
 
-    private problemTypeRepository =
-        new ProblemTypeRepository();
+  async getActive() {
+    return await problemTypeRepository.findActive();
+  }
 
-    private categoryRepository =
-        new CategoryRepository();
-
-    async getAll() {
-        return await this
-            .problemTypeRepository
-            .getAll();
+  async create(data: {
+    name: string;
+    description?: string;
+    categoryId: string;
+  }) {
+    if (!data.name?.trim()) {
+      throw new Error("El nombre del tipo de problema es obligatorio.");
     }
 
-    async getById(id: string) {
-
-        const problemType =
-            await this
-                .problemTypeRepository
-                .getById(id);
-
-        if (!problemType) {
-            throw new Error(
-                "Tipo de problema no encontrado"
-            );
-        }
-
-        return problemType;
+    if (!data.categoryId) {
+      throw new Error("La categoría es obligatoria.");
     }
 
-    async create(data: {
-        name: string;
-        description?: string;
-        categoryId: string;
-    }) {
+    return await problemTypeRepository.create({
+      name: data.name.trim(),
+      description: data.description?.trim() || undefined,
+      categoryId: data.categoryId,
+    });
+  }
 
-        const category =
-            await this
-                .categoryRepository
-                .getById(data.categoryId);
-
-        if (!category) {
-            throw new Error(
-                "La categoría no existe"
-            );
-        }
-
-        const existingProblemType =
-            await this
-                .problemTypeRepository
-                .getByNameAndCategory(
-                    data.name,
-                    data.categoryId
-                );
-
-        if (existingProblemType) {
-            throw new Error(
-                "Ya existe un tipo de problema con ese nombre en esta categoría"
-            );
-        }
-
-        return await this
-            .problemTypeRepository
-            .create(data);
+  async update(
+    id: string,
+    data: {
+      name?: string;
+      description?: string;
+      categoryId?: string;
+      active?: boolean;
+    }
+  ) {
+    if (!id) {
+      throw new Error("El tipo de problema es obligatorio.");
     }
 
-    async update(
-        id: string,
-        data: {
-            name?: string;
-            description?: string;
-            categoryId?: string;
-        }
-    ) {
+    return await problemTypeRepository.update(id, {
+      name: data.name?.trim(),
+      description: data.description?.trim(),
+      categoryId: data.categoryId,
+      active: data.active,
+    });
+  }
 
-        const problemType =
-            await this
-                .problemTypeRepository
-                .getById(id);
+  async deactivate(id: string) {
+    return await problemTypeRepository.deactivate(id);
+  }
 
-        if (!problemType) {
-            throw new Error(
-                "Tipo de problema no encontrado"
-            );
-        }
-
-        if (data.categoryId) {
-
-            const category =
-                await this
-                    .categoryRepository
-                    .getById(data.categoryId);
-
-            if (!category) {
-                throw new Error(
-                    "La categoría no existe"
-                );
-            }
-        }
-
-        const name =
-            data.name ?? problemType.name;
-
-        const categoryId =
-            data.categoryId ??
-            problemType.categoryId;
-
-        const existingProblemType =
-            await this
-                .problemTypeRepository
-                .getByNameAndCategory(
-                    name,
-                    categoryId
-                );
-
-        if (
-            existingProblemType &&
-            existingProblemType.id !== id
-        ) {
-            throw new Error(
-                "Ya existe un tipo de problema con ese nombre en esta categoría"
-            );
-        }
-
-        return await this
-            .problemTypeRepository
-            .update(id, data);
-    }
-
-    async delete(id: string) {
-
-        const problemType =
-            await this
-                .problemTypeRepository
-                .getById(id);
-
-        if (!problemType) {
-            throw new Error(
-                "Tipo de problema no encontrado"
-            );
-        }
-
-        return await this
-            .problemTypeRepository
-            .delete(id);
-    }
-
+  async activate(id: string) {
+    return await problemTypeRepository.activate(id);
+  }
 }

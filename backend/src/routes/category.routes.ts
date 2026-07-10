@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { CategoryController } from "../controllers/category.controller";
 
-const router = Router();
+const router =
+  Router();
 
 router.get(
   "/",
@@ -9,8 +10,8 @@ router.get(
 );
 
 router.get(
-  "/:id",
-  CategoryController.getById
+  "/active",
+  CategoryController.getActive
 );
 
 router.post(
@@ -18,14 +19,19 @@ router.post(
   CategoryController.create
 );
 
-router.put(
+router.patch(
   "/:id",
   CategoryController.update
 );
 
-router.delete(
-  "/:id",
-  CategoryController.delete
+router.patch(
+  "/:id/deactivate",
+  CategoryController.deactivate
+);
+
+router.patch(
+  "/:id/activate",
+  CategoryController.activate
 );
 
 export default router;

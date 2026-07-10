@@ -1,26 +1,22 @@
-import { Router } from "express";
-import { SlaConfigurationController } from "../controllers/sla-configuration.controller";
+import {
+  Router,
+} from "express";
 
-const router = Router();
+import {
+  SlaConfigurationController,
+} from "../controllers/sla-configuration.controller";
+
+const router =
+  Router();
 
 router.get(
   "/",
   SlaConfigurationController.getAll
 );
 
-router.get(
-  "/priority/:priority",
-  SlaConfigurationController.getByPriority
-);
-
-router.get(
-  "/:id",
-  SlaConfigurationController.getById
-);
-
 router.put(
-  "/:id",
-  SlaConfigurationController.update
+  "/:priority",
+  SlaConfigurationController.upsert
 );
 
 export default router;

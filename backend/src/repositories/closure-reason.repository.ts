@@ -1,8 +1,7 @@
 import { prisma } from "../config/prisma";
 
 export class ClosureReasonRepository {
-
-  async getAll() {
+  async findAll() {
     return await prisma.closureReason.findMany({
       orderBy: {
         name: "asc",
@@ -10,18 +9,13 @@ export class ClosureReasonRepository {
     });
   }
 
-  async getById(id: string) {
-    return await prisma.closureReason.findUnique({
+  async findActive() {
+    return await prisma.closureReason.findMany({
       where: {
-        id,
+        active: true,
       },
-    });
-  }
-
-  async getByName(name: string) {
-    return await prisma.closureReason.findUnique({
-      where: {
-        name,
+      orderBy: {
+        name: "asc",
       },
     });
   }
@@ -31,7 +25,11 @@ export class ClosureReasonRepository {
     description?: string;
   }) {
     return await prisma.closureReason.create({
-      data,
+      data: {
+        name: data.name,
+        description: data.description,
+        active: true,
+      },
     });
   }
 
@@ -40,6 +38,7 @@ export class ClosureReasonRepository {
     data: {
       name?: string;
       description?: string;
+      active?: boolean;
     }
   ) {
     return await prisma.closureReason.update({
@@ -50,12 +49,25 @@ export class ClosureReasonRepository {
     });
   }
 
-  async delete(id: string) {
-    return await prisma.closureReason.delete({
+  async deactivate(id: string) {
+    return await prisma.closureReason.update({
       where: {
         id,
+      },
+      data: {
+        active: false,
       },
     });
   }
 
+  async activate(id: string) {
+    return await prisma.closureReason.update({
+      where: {
+        id,
+      },
+      data: {
+        active: true,
+      },
+    });
+  }
 }

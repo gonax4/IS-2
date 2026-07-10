@@ -348,13 +348,15 @@ export default function
                                         navigate("/operator/monitoring")
                                     }
                                     className="
-                                        px-5
+                                        w-full
+                                        px-4
                                         py-3
                                         rounded-xl
-                                        bg-[#03152E]
-                                        text-white
+                                        bg-yellow-400
+                                        text-black
                                         font-bold
-                                        hover:bg-black
+                                        text-left
+                                        hover:bg-yellow-300
                                         transition
                                     "
                                 >
@@ -379,6 +381,26 @@ export default function
                             >
                                 Postulaciones de técnicos
                             </button>
+
+                        <button
+                            onClick={() =>
+                                navigate("/operator/catalog")
+                            }
+                            className="
+                                w-full
+                                px-4
+                                py-3
+                                rounded-xl
+                                bg-yellow-400
+                                text-black
+                                font-bold
+                                text-left
+                                hover:bg-yellow-300
+                                transition
+                            "
+                        >
+                            Catálogo operativo
+                        </button>
                     </div>
 
                 </div>

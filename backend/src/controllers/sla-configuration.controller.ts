@@ -1,102 +1,61 @@
-import { Request, Response } from "express";
-import { Priority } from "@prisma/client";
-import { SlaConfigurationService } from "../services/sla-configuration.service";
+import {
+  Request,
+  Response,
+} from "express";
+
+import {
+  Priority,
+} from "@prisma/client";
+
+import {
+  SlaConfigurationService,
+} from "../services/sla-configuration.service";
 
 const slaConfigurationService =
-    new SlaConfigurationService();
+  new SlaConfigurationService();
 
 export class SlaConfigurationController {
+  static async getAll(
+    req: Request,
+    res: Response
+  ) {
+    try {
+      const configurations =
+        await slaConfigurationService.getAll();
 
-    static async getAll(
-        req: Request,
-        res: Response
-    ) {
-        try {
+      return res.json(configurations);
 
-            const configurations =
-                await slaConfigurationService.getAll();
-
-            res.json(configurations);
-
-        } catch (error: any) {
-
-            res.status(400).json({
-                message: error.message,
-            });
-
-        }
+    } catch (error: any) {
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al obtener configuraciones SLA.",
+      });
     }
+  }
 
-    static async getById(
-        req: Request,
-        res: Response
-    ) {
-        try {
+  static async upsert(
+    req: Request,
+    res: Response
+  ) {
+    try {
+      const configuration =
+        await slaConfigurationService.upsert({
+          priority:
+            req.params.priority as Priority,
 
-            const id =
-                req.params.id as string;
+          responseHours:
+            Number(req.body.responseHours),
+        });
 
-            const configuration =
-                await slaConfigurationService.getById(id);
+      return res.json(configuration);
 
-            res.json(configuration);
-
-        } catch (error: any) {
-
-            res.status(400).json({
-                message: error.message,
-            });
-
-        }
+    } catch (error: any) {
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al guardar configuración SLA.",
+      });
     }
-
-    static async getByPriority(
-        req: Request,
-        res: Response
-    ) {
-        try {
-
-            const priority =
-                req.params.priority as Priority;
-
-            const configuration =
-                await slaConfigurationService.getByPriority(priority);
-
-            res.json(configuration);
-
-        } catch (error: any) {
-
-            res.status(400).json({
-                message: error.message,
-            });
-
-        }
-    }
-
-    static async update(
-        req: Request,
-        res: Response
-    ) {
-        try {
-
-            const id =
-                req.params.id as string;
-
-            const configuration =
-                await slaConfigurationService.update(
-                    id,
-                    req.body
-                );
-
-            res.json(configuration);
-
-        } catch (error: any) {
-
-            res.status(400).json({
-                message: error.message,
-            });
-
-        }
-    }
-
+  }
 }

@@ -5,49 +5,41 @@ const problemTypeService =
   new ProblemTypeService();
 
 export class ProblemTypeController {
-
   static async getAll(
     req: Request,
     res: Response
   ) {
     try {
-
       const problemTypes =
         await problemTypeService.getAll();
 
-      res.json(problemTypes);
+      return res.json(problemTypes);
 
     } catch (error: any) {
-
-      res.status(400).json({
-        message: error.message,
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al obtener tipos de problema.",
       });
-
     }
   }
 
-  static async getById(
+  static async getActive(
     req: Request,
     res: Response
   ) {
     try {
+      const problemTypes =
+        await problemTypeService.getActive();
 
-      const id =
-        req.params.id as string;
-
-      const problemType =
-        await problemTypeService.getById(
-          id
-        );
-
-      res.json(problemType);
+      return res.json(problemTypes);
 
     } catch (error: any) {
-
-      res.status(400).json({
-        message: error.message,
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al obtener tipos activos.",
       });
-
     }
   }
 
@@ -56,20 +48,21 @@ export class ProblemTypeController {
     res: Response
   ) {
     try {
-
       const problemType =
-        await problemTypeService.create(
-          req.body
-        );
+        await problemTypeService.create({
+          name: req.body.name,
+          description: req.body.description,
+          categoryId: req.body.categoryId,
+        });
 
-      res.status(201).json(problemType);
+      return res.status(201).json(problemType);
 
     } catch (error: any) {
-
-      res.status(400).json({
-        message: error.message,
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al crear tipo de problema.",
       });
-
     }
   }
 
@@ -78,52 +71,67 @@ export class ProblemTypeController {
     res: Response
   ) {
     try {
-
-      const id =
-        req.params.id as string;
-
       const problemType =
         await problemTypeService.update(
-          id,
-          req.body
+          String(req.params.id),
+          {
+            name: req.body.name,
+            description: req.body.description,
+            categoryId: req.body.categoryId,
+            active: req.body.active,
+          }
         );
 
-      res.json(problemType);
+      return res.json(problemType);
 
     } catch (error: any) {
-
-      res.status(400).json({
-        message: error.message,
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al actualizar tipo de problema.",
       });
-
     }
   }
 
-  static async delete(
+  static async deactivate(
     req: Request,
     res: Response
   ) {
     try {
+      const problemType =
+        await problemTypeService.deactivate(
+          String(req.params.id)
+        );
 
-      const id =
-        req.params.id as string;
-
-      await problemTypeService.delete(
-        id
-      );
-
-      res.json({
-        message:
-          "Tipo de problema eliminado correctamente",
-      });
+      return res.json(problemType);
 
     } catch (error: any) {
-
-      res.status(400).json({
-        message: error.message,
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al desactivar tipo de problema.",
       });
-
     }
   }
 
+  static async activate(
+    req: Request,
+    res: Response
+  ) {
+    try {
+      const problemType =
+        await problemTypeService.activate(
+          String(req.params.id)
+        );
+
+      return res.json(problemType);
+
+    } catch (error: any) {
+      return res.status(400).json({
+        message:
+          error.message ||
+          "Error al activar tipo de problema.",
+      });
+    }
+  }
 }

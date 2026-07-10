@@ -1,51 +1,29 @@
 import { ClosureReasonRepository } from "../repositories/closure-reason.repository";
 
+const closureReasonRepository =
+  new ClosureReasonRepository();
+
 export class ClosureReasonService {
-
-  private closureReasonRepository =
-    new ClosureReasonRepository();
-
   async getAll() {
-    return await this
-      .closureReasonRepository
-      .getAll();
+    return await closureReasonRepository.findAll();
   }
 
-  async getById(id: string) {
-
-    const closureReason =
-      await this
-        .closureReasonRepository
-        .getById(id);
-
-    if (!closureReason) {
-      throw new Error(
-        "Motivo de cierre no encontrado"
-      );
-    }
-
-    return closureReason;
+  async getActive() {
+    return await closureReasonRepository.findActive();
   }
 
   async create(data: {
     name: string;
     description?: string;
   }) {
-
-    const existingClosureReason =
-      await this
-        .closureReasonRepository
-        .getByName(data.name);
-
-    if (existingClosureReason) {
-      throw new Error(
-        "Ya existe un motivo de cierre con ese nombre"
-      );
+    if (!data.name?.trim()) {
+      throw new Error("El nombre del motivo de cierre es obligatorio.");
     }
 
-    return await this
-      .closureReasonRepository
-      .create(data);
+    return await closureReasonRepository.create({
+      name: data.name.trim(),
+      description: data.description?.trim() || undefined,
+    });
   }
 
   async update(
@@ -53,58 +31,25 @@ export class ClosureReasonService {
     data: {
       name?: string;
       description?: string;
+      active?: boolean;
     }
   ) {
-
-    const closureReason =
-      await this
-        .closureReasonRepository
-        .getById(id);
-
-    if (!closureReason) {
-      throw new Error(
-        "Motivo de cierre no encontrado"
-      );
+    if (!id) {
+      throw new Error("El motivo de cierre es obligatorio.");
     }
 
-    if (data.name) {
-
-      const existingClosureReason =
-        await this
-          .closureReasonRepository
-          .getByName(data.name);
-
-      if (
-        existingClosureReason &&
-        existingClosureReason.id !== id
-      ) {
-        throw new Error(
-          "Ya existe un motivo de cierre con ese nombre"
-        );
-      }
-    }
-
-    return await this
-      .closureReasonRepository
-      .update(id, data);
+    return await closureReasonRepository.update(id, {
+      name: data.name?.trim(),
+      description: data.description?.trim(),
+      active: data.active,
+    });
   }
 
-  async delete(id: string) {
-
-    const closureReason =
-      await this
-        .closureReasonRepository
-        .getById(id);
-
-    if (!closureReason) {
-      throw new Error(
-        "Motivo de cierre no encontrado"
-      );
-    }
-
-    return await this
-      .closureReasonRepository
-      .delete(id);
+  async deactivate(id: string) {
+    return await closureReasonRepository.deactivate(id);
   }
 
+  async activate(id: string) {
+    return await closureReasonRepository.activate(id);
+  }
 }

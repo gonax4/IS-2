@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { ClosureReasonController } from "../controllers/closure-reason.controller";
 
-const router = Router();
+const router =
+  Router();
 
 router.get(
   "/",
@@ -9,8 +10,8 @@ router.get(
 );
 
 router.get(
-  "/:id",
-  ClosureReasonController.getById
+  "/active",
+  ClosureReasonController.getActive
 );
 
 router.post(
@@ -18,14 +19,19 @@ router.post(
   ClosureReasonController.create
 );
 
-router.put(
+router.patch(
   "/:id",
   ClosureReasonController.update
 );
 
-router.delete(
-  "/:id",
-  ClosureReasonController.delete
+router.patch(
+  "/:id/deactivate",
+  ClosureReasonController.deactivate
+);
+
+router.patch(
+  "/:id/activate",
+  ClosureReasonController.activate
 );
 
 export default router;

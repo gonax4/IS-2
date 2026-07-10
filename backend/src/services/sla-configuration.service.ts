@@ -1,78 +1,65 @@
-import { Priority } from "@prisma/client";
-import { SlaConfigurationRepository } from "../repositories/sla-configuration.repository";
+import {
+  Priority,
+} from "@prisma/client";
+
+import {
+  SlaConfigurationRepository,
+} from "../repositories/sla-configuration.repository";
+
+const slaConfigurationRepository =
+  new SlaConfigurationRepository();
 
 export class SlaConfigurationService {
+  async getAll() {
+    const existing =
+      await slaConfigurationRepository.findAll();
 
-    private slaConfigurationRepository =
-        new SlaConfigurationRepository();
+    const priorities:
+      Priority[] = [
+        Priority.BAJO,
+        Priority.MEDIO,
+        Priority.ALTO,
+      ];
 
-    async getAll() {
-        return await this
-            .slaConfigurationRepository
-            .getAll();
+    const missing =
+      priorities.filter(
+        (priority) =>
+          !existing.some(
+            (item) =>
+              item.priority === priority
+          )
+      );
+
+    for (const priority of missing) {
+      await slaConfigurationRepository.upsert({
+        priority,
+        responseHours:
+          priority === Priority.ALTO
+            ? 24
+            : priority === Priority.MEDIO
+              ? 48
+              : 72,
+      });
     }
 
-    async getById(id: string) {
+    return await slaConfigurationRepository.findAll();
+  }
 
-        const configuration =
-            await this
-                .slaConfigurationRepository
-                .getById(id);
-
-        if (!configuration) {
-            throw new Error(
-                "Configuración SLA no encontrada"
-            );
-        }
-
-        return configuration;
+  async upsert(data: {
+    priority: Priority;
+    responseHours: number;
+  }) {
+    if (!data.priority) {
+      throw new Error("La prioridad es obligatoria.");
     }
 
-    async update(
-        id: string,
-        data: {
-            responseHours: number;
-        }
+    if (
+      !data.responseHours ||
+      data.responseHours <= 0
     ) {
-
-        const configuration =
-            await this
-                .slaConfigurationRepository
-                .getById(id);
-
-        if (!configuration) {
-            throw new Error(
-                "Configuración SLA no encontrada"
-            );
-        }
-
-        if (data.responseHours <= 0) {
-            throw new Error(
-                "Las horas de respuesta deben ser mayores a cero"
-            );
-        }
-
-        return await this
-            .slaConfigurationRepository
-            .update(id, data);
+      throw new Error("Las horas objetivo deben ser mayores a cero.");
     }
 
-    async getByPriority(
-        priority: Priority
-    ) {
-
-        const configuration =
-            await this
-                .slaConfigurationRepository
-                .getByPriority(priority);
-
-        if (!configuration) {
-            throw new Error(
-                "Configuración SLA no encontrada"
-            );
-        }
-
-        return configuration;
-    }
-
+    return await slaConfigurationRepository.upsert(data);
+  }
 }

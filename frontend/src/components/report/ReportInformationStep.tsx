@@ -1,3 +1,9 @@
+import {
+    useEffect,
+    useMemo,
+    useState,
+} from "react";
+
 import type {
     Dispatch,
     SetStateAction,
@@ -6,6 +12,15 @@ import type {
 import type {
     ReportFormValues,
 } from "../../types/report.types";
+
+import {
+    OperationalCatalogService,
+} from "../../services/operationalCatalog.service";
+
+import type {
+    Category,
+    ProblemType,
+} from "../../services/operationalCatalog.service";
 
 type Props = {
     formData: ReportFormValues;
@@ -26,147 +41,170 @@ type Props = {
     >;
 };
 
-const categoryProblems = {
-
-    SECURITY: [
-
-        "Robos y asaltos",
-
-        "Consumo de alcohol en la vía pública",
-
-        "Venta ambulante no autorizada",
-
-        "Personas sospechosas",
-
-        "Ruidos molestos",
-    ],
-
-    ENVIRONMENT: [
-
-        "Acumulación de basura",
-
-        "Mal olor en la vía pública",
-
-        "Contaminación de áreas verdes",
-
-        "Residuos fuera de contenedores",
-
-        "Quema de residuos",
-    ],
-
-    INFRASTRUCTURE: [
-
-        "Alumbrado público defectuoso",
-
-        "Pistas en mal estado",
-
-        "Veredas en mal estado",
-
-        "Semáforos inoperativos",
-
-        "Señalización dañada",
-    ],
-
-    MOBILITY: [
-
-        "Congestión vehicular",
-
-        "Estacionamiento en zonas prohibidas",
-
-        "Transporte público deficiente",
-
-        "Autos abandonados",
-
-        "Exceso de velocidad",
-    ],
-};
-
 export default function ReportInformationStep({
     formData,
     setFormData,
     errors,
 }: Props) {
+    const [categories, setCategories] =
+        useState<Category[]>([]);
+
+    const [problemTypes, setProblemTypes] =
+        useState<ProblemType[]>([]);
+
+    const [loadingCatalog, setLoadingCatalog] =
+        useState(true);
+
+    const [catalogError, setCatalogError] =
+        useState("");
+
+    useEffect(() => {
+        const loadCatalog =
+            async () => {
+                try {
+                    setLoadingCatalog(true);
+                    setCatalogError("");
+
+                    const [
+                        categoriesData,
+                        problemTypesData,
+                    ] =
+                        await Promise.all([
+                            OperationalCatalogService
+                                .getActiveCategories(),
+
+                            OperationalCatalogService
+                                .getActiveProblemTypes(),
+                        ]);
+
+                    setCategories(categoriesData);
+                    setProblemTypes(problemTypesData);
+
+                } catch (error: any) {
+                    setCatalogError(
+                        error.message ||
+                        "No se pudo cargar el catálogo operativo."
+                    );
+
+                } finally {
+                    setLoadingCatalog(false);
+                }
+            };
+
+        loadCatalog();
+    }, []);
+
+    const filteredProblemTypes =
+        useMemo(() => {
+            if (!formData.categoryId) {
+                return [];
+            }
+
+            return problemTypes.filter(
+                (problemType) =>
+                    problemType.categoryId === formData.categoryId
+            );
+        }, [
+            problemTypes,
+            formData.categoryId,
+        ]);
 
     return (
-
         <div>
+            {catalogError && (
+                <div className="
+                    mb-6
+                    bg-red-50
+                    border
+                    border-red-200
+                    text-red-700
+                    rounded-2xl
+                    p-4
+                    font-semibold
+                ">
+                    {catalogError}
+                </div>
+            )}
 
             <div className="
-        grid
-        md:grid-cols-2
-        gap-6
-      ">
-
+                grid
+                md:grid-cols-2
+                gap-6
+            ">
                 <div>
-
                     <label className="
-            block
-            text-lg
-            font-medium
-            mb-3
-          ">
+                        block
+                        text-lg
+                        font-medium
+                        mb-3
+                    ">
                         Categoría *
                     </label>
 
                     <select
-                        value={formData.category}
-                        onChange={(e) =>
-                            setFormData((prev) => ({
+                        value={formData.categoryId || ""}
+                        disabled={loadingCatalog}
+                        onChange={(event) => {
+                            const categoryId =
+                                event.target.value;
 
+                            const selectedCategory =
+                                categories.find(
+                                    (category) =>
+                                        category.id === categoryId
+                                );
+
+                            setFormData((prev) => ({
                                 ...prev,
 
+                                categoryId,
+
                                 category:
-                                    e.target.value,
+                                    selectedCategory?.name || "",
+
+                                problemTypeId: "",
 
                                 problemType: "",
-                            }))
-                        }
+                            }));
+                        }}
                         className="
-              w-full
-              border
-              rounded-2xl
-              p-4
-              text-lg
-            "
+                            w-full
+                            border
+                            rounded-2xl
+                            p-4
+                            text-lg
+                            bg-white
+                        "
                     >
-
                         <option value="">
-                            Selecciona categoría
+                            {
+                                loadingCatalog
+                                    ? "Cargando categorías..."
+                                    : "Selecciona categoría"
+                            }
                         </option>
 
-                        <option value="INFRASTRUCTURE">
-                            Infraestructura y servicios
-                        </option>
-
-                        <option value="SECURITY">
-                            Seguridad ciudadana
-                        </option>
-
-                        <option value="ENVIRONMENT">
-                            Ambiente y limpieza
-                        </option>
-
-                        <option value="MOBILITY">
-                            Movilidad y tránsito
-                        </option>
-
+                        {categories.map((category) => (
+                            <option
+                                key={category.id}
+                                value={category.id}
+                            >
+                                {category.name}
+                            </option>
+                        ))}
                     </select>
 
                     {errors.category && (
-
                         <p className="
                             text-red-500
                             mt-2
                         ">
                             {errors.category}
                         </p>
-
                     )}
-
                 </div>
 
                 <div>
-
                     <label className="
                         block
                         text-lg
@@ -177,126 +215,127 @@ export default function ReportInformationStep({
                     </label>
 
                     <select
-                        value={formData.problemType}
-                        onChange={(e) =>
+                        value={formData.problemTypeId || ""}
+                        disabled={
+                            loadingCatalog ||
+                            !formData.categoryId
+                        }
+                        onChange={(event) => {
+                            const problemTypeId =
+                                event.target.value;
+
+                            const selectedProblemType =
+                                problemTypes.find(
+                                    (problemType) =>
+                                        problemType.id === problemTypeId
+                                );
+
                             setFormData((prev) => ({
                                 ...prev,
-                                problemType: e.target.value,
-                            }))
-                        }
+
+                                problemTypeId,
+
+                                problemType:
+                                    selectedProblemType?.name || "",
+                            }));
+                        }}
                         className="
                             w-full
                             border
                             rounded-2xl
                             p-4
                             text-lg
-                            "
-                        >
-
+                            bg-white
+                        "
+                    >
                         <option value="">
-                            Selecciona un tipo de problema
+                            {
+                                formData.categoryId
+                                    ? "Selecciona un tipo de problema"
+                                    : "Primero selecciona una categoría"
+                            }
                         </option>
 
-                        {
-                            formData.category &&
-
-                            categoryProblems[
-                                formData.category as keyof typeof categoryProblems
-                            ]?.map((problem) => (
-
-                                <option
-                                    key={problem}
-                                    value={problem}
-                                >
-                                    {problem}
-                                </option>
-
-                            ))
-                        }
-
+                        {filteredProblemTypes.map((problemType) => (
+                            <option
+                                key={problemType.id}
+                                value={problemType.id}
+                            >
+                                {problemType.name}
+                            </option>
+                        ))}
                     </select>
 
                     {errors.problemType && (
-
                         <p className="
                             text-red-500
                             mt-2
                         ">
                             {errors.problemType}
                         </p>
-
                     )}
-
                 </div>
-
             </div>
 
-                <div className="mt-8">
+            <div className="mt-8">
+                <label className="
+                    block
+                    text-lg
+                    font-medium
+                    mb-3
+                ">
+                    Título del reporte *
+                </label>
 
-                    <label className="
-                        block
+                <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(event) =>
+                        setFormData((prev) => ({
+                            ...prev,
+                            title: event.target.value,
+                        }))
+                    }
+                    placeholder="Ej. Personas bebiendo frente al parque"
+                    className="
+                        w-full
+                        border
+                        rounded-2xl
+                        p-4
                         text-lg
-                        font-medium
-                        mb-3
+                    "
+                />
+
+                {errors.title && (
+                    <p className="
+                        text-red-500
+                        mt-2
                     ">
-                        Título del reporte *
-                    </label>
+                        {errors.title}
+                    </p>
+                )}
+            </div>
 
-                    <input
-                        type="text"
-                        value={formData.title}
-                        onChange={(e) =>
-                            setFormData((prev) => ({
-                                ...prev,
-                                title: e.target.value,
-                            }))
-                        }
-                        placeholder="Ej. Personas bebiendo frente al parque"
-                        className="
-                            w-full
-                            border
-                            rounded-2xl
-                            p-4
-                            text-lg
-                        "
-                    />
-
-                    {errors.title && (
-
-                        <p className="
-                            text-red-500
-                            mt-2
-                        ">
-                            {errors.title}
-                        </p>
-
-                    )}
-
-                </div>
-
-                <div className="mt-8">
-
-                    <label className="
-                        block
-                        text-lg
-                        font-medium
-                        mb-3
-                    ">
-                        Descripción del problema *
-                    </label>
+            <div className="mt-8">
+                <label className="
+                    block
+                    text-lg
+                    font-medium
+                    mb-3
+                ">
+                    Descripción del problema *
+                </label>
 
                 <textarea
                     rows={8}
                     value={formData.description}
-                    onChange={(e) =>
+                    onChange={(event) =>
                         setFormData((prev) => ({
                             ...prev,
-                            description: e.target.value,
+                            description: event.target.value,
                         }))
                     }
-                    placeholder="
-                        Describe lo que está ocurriendo...
-                    "
+                    placeholder="Describe lo que está ocurriendo..."
                     className="
                         w-full
                         border
@@ -308,18 +347,13 @@ export default function ReportInformationStep({
                 />
 
                 {errors.description && (
-
                     <p className="
                         text-red-500
                         mt-2
                     ">
                         {errors.description}
                     </p>
-
                 )}
-
-
-
             </div>
 
             <div className="
@@ -331,9 +365,7 @@ export default function ReportInformationStep({
                 items-center
                 justify-between
             ">
-
                 <div>
-
                     <h3 className="
                         text-xl
                         font-medium
@@ -349,10 +381,10 @@ export default function ReportInformationStep({
                         Tu identidad no será visible
                         para otros usuarios.
                     </p>
-
                 </div>
 
                 <button
+                    type="button"
                     onClick={() =>
                         setFormData((prev) => ({
                             ...prev,
@@ -368,29 +400,27 @@ export default function ReportInformationStep({
                         items-center
                         px-1
                         transition
-                        ${formData.isAnonymous
-                            ? "bg-blue-600"
-                            : "bg-gray-300"
+                        ${
+                            formData.isAnonymous
+                                ? "bg-blue-600"
+                                : "bg-gray-300"
                         }
-          `}
+                    `}
                 >
-
                     <div className={`
                         w-7
                         h-7
                         rounded-full
                         bg-white
                         transition
-                        ${formData.isAnonymous
-                            ? "ml-auto"
-                            : ""
+                        ${
+                            formData.isAnonymous
+                                ? "ml-auto"
+                                : ""
                         }
                     `} />
-
                 </button>
-
             </div>
-
         </div>
     );
 }

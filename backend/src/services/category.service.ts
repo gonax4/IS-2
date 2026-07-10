@@ -1,121 +1,55 @@
 import { CategoryRepository } from "../repositories/category.repository";
 
+const categoryRepository =
+  new CategoryRepository();
+
 export class CategoryService {
+  async getAll() {
+    return await categoryRepository.findAll();
+  }
 
-    private categoryRepository =
-        new CategoryRepository();
+  async getActive() {
+    return await categoryRepository.findActive();
+  }
 
-    async getAll() {
-        return await this
-            .categoryRepository
-            .getAll();
+  async create(data: {
+    name: string;
+    description?: string;
+  }) {
+    if (!data.name?.trim()) {
+      throw new Error("El nombre de la categoría es obligatorio.");
     }
 
-    async getById(id: string) {
+    return await categoryRepository.create({
+      name: data.name.trim(),
+      description: data.description?.trim() || undefined,
+    });
+  }
 
-        const category =
-            await this
-                .categoryRepository
-                .getById(id);
-
-        if (!category) {
-            throw new Error(
-                "Categoría no encontrada"
-            );
-        }
-
-        return category;
+  async update(
+    id: string,
+    data: {
+      name?: string;
+      description?: string;
+      active?: boolean;
+    }
+  ) {
+    if (!id) {
+      throw new Error("La categoría es obligatoria.");
     }
 
-    async create(data: {
-        name: string;
-        description?: string;
-    }) {
+    return await categoryRepository.update(id, {
+      name: data.name?.trim(),
+      description: data.description?.trim(),
+      active: data.active,
+    });
+  }
 
-        const existingCategory =
-            await this
-                .categoryRepository
-                .getByName(data.name);
+  async deactivate(id: string) {
+    return await categoryRepository.deactivate(id);
+  }
 
-        if (existingCategory) {
-            throw new Error(
-                "Ya existe una categoría con ese nombre"
-            );
-        }
-
-        return await this
-            .categoryRepository
-            .create(data);
-    }
-
-    async update(
-        id: string,
-        data: {
-            name?: string;
-            description?: string;
-        }
-    ) {
-
-        const category =
-            await this
-                .categoryRepository
-                .getById(id);
-
-        if (!category) {
-            throw new Error(
-                "Categoría no encontrada"
-            );
-        }
-
-        if (data.name) {
-
-            const existingCategory =
-                await this
-                    .categoryRepository
-                    .getByName(data.name);
-
-            if (
-                existingCategory &&
-                existingCategory.id !== id
-            ) {
-                throw new Error(
-                    "Ya existe una categoría con ese nombre"
-                );
-            }
-        }
-
-        return await this
-            .categoryRepository
-            .update(id, data);
-    }
-
-    async delete(id: string) {
-
-        const category =
-            await this
-                .categoryRepository
-                .getById(id);
-
-        if (!category) {
-            throw new Error(
-                "Categoría no encontrada"
-            );
-        }
-
-        const hasProblemTypes =
-            await this
-                .categoryRepository
-                .hasProblemTypes(id);
-
-        if (hasProblemTypes) {
-            throw new Error(
-                "No se puede eliminar la categoría porque tiene tipos de problema asociados"
-            );
-        }
-
-        return await this
-            .categoryRepository
-            .delete(id);
-    }
-
+  async activate(id: string) {
+    return await categoryRepository.activate(id);
+  }
 }

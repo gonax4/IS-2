@@ -1,74 +1,90 @@
 import { prisma } from "../config/prisma";
 
 export class CategoryRepository {
+  async findAll() {
+    return await prisma.category.findMany({
+      include: {
+        problemTypes: {
+          orderBy: {
+            name: "asc",
+          },
+        },
+      },
+      orderBy: {
+        name: "asc",
+      },
+    });
+  }
 
-    async getAll() {
-        return await prisma.category.findMany({
-            orderBy: {
-                name: "asc",
-            },
-        });
+  async findActive() {
+    return await prisma.category.findMany({
+      where: {
+        active: true,
+      },
+      include: {
+        problemTypes: {
+          where: {
+            active: true,
+          },
+          orderBy: {
+            name: "asc",
+          },
+        },
+      },
+      orderBy: {
+        name: "asc",
+      },
+    });
+  }
+
+  async create(data: {
+    name: string;
+    description?: string;
+  }) {
+    return await prisma.category.create({
+      data: {
+        name: data.name,
+        description: data.description,
+        active: true,
+      },
+    });
+  }
+
+  async update(
+    id: string,
+    data: {
+      name?: string;
+      description?: string;
+      active?: boolean;
     }
+  ) {
+    return await prisma.category.update({
+      where: {
+        id,
+      },
+      data,
+    });
+  }
 
-    async getById(id: string) {
-        return await prisma.category.findUnique({
-            where: {
-                id,
-            },
-        });
-    }
+  async deactivate(id: string) {
+    return await prisma.category.update({
+      where: {
+        id,
+      },
+      data: {
+        active: false,
+      },
+    });
+  }
 
-    async getByName(name: string) {
-        return await prisma.category.findUnique({
-            where: {
-                name,
-            },
-        });
-    }
-
-    async create(data: {
-        name: string;
-        description?: string;
-    }) {
-        return await prisma.category.create({
-            data,
-        });
-    }
-
-    async update(
-        id: string,
-        data: {
-            name?: string;
-            description?: string;
-        }
-    ) {
-        return await prisma.category.update({
-            where: {
-                id,
-            },
-            data,
-        });
-    }
-
-    async delete(id: string) {
-        return await prisma.category.delete({
-            where: {
-                id,
-            },
-        });
-    }
-
-
-    async hasProblemTypes(
-        categoryId: string
-    ) {
-        const count =
-            await prisma.problemType.count({
-                where: {
-                    categoryId,
-                },
-            });
-
-        return count > 0;
-    }
+  async activate(id: string) {
+    return await prisma.category.update({
+      where: {
+        id,
+      },
+      data: {
+        active: true,
+      },
+    });
+  }
 }

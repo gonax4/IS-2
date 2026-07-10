@@ -1,44 +1,35 @@
-import { prisma } from "../config/prisma";
-import { Priority } from "@prisma/client";
+import {
+  Priority,
+} from "@prisma/client";
+
+import {
+  prisma,
+} from "../config/prisma";
 
 export class SlaConfigurationRepository {
-
-  async getAll() {
+  async findAll() {
     return await prisma.slaConfiguration.findMany({
       orderBy: {
-        responseHours: "asc",
+        priority: "asc",
       },
     });
   }
 
-  async getById(id: string) {
-    return await prisma.slaConfiguration.findUnique({
+  async upsert(data: {
+    priority: Priority;
+    responseHours: number;
+  }) {
+    return await prisma.slaConfiguration.upsert({
       where: {
-        id,
+        priority: data.priority,
+      },
+      update: {
+        responseHours: data.responseHours,
+      },
+      create: {
+        priority: data.priority,
+        responseHours: data.responseHours,
       },
     });
   }
-
-  async getByPriority(priority: Priority) {
-    return await prisma.slaConfiguration.findUnique({
-      where: {
-        priority,
-      },
-    });
-  }
-
-  async update(
-    id: string,
-    data: {
-      responseHours: number;
-    }
-  ) {
-    return await prisma.slaConfiguration.update({
-      where: {
-        id,
-      },
-      data,
-    });
-  }
-
 }
